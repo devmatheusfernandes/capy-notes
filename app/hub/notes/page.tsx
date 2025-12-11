@@ -22,7 +22,7 @@ import {
 import { folderStorage } from "@/lib/folder-storage"
 import { useCreateNote, useNotes } from "@/hooks/notes"
 import type { BreadcrumbItem, NoteData, TagData } from "@/types"
-import { ChevronRight, Home, LayoutGrid, List, Folder, FileText, Archive, Edit, Menu, Plus } from "lucide-react"
+import { ChevronRight, Home, LayoutGrid, List, Folder, FileText, Archive, Edit, Menu, Plus, Pencil, Trash2 } from "lucide-react"
 
 interface FolderBreadcrumbsProps {
   path: BreadcrumbItem[]
@@ -80,6 +80,140 @@ function getPreviewText(note: NoteData, max = 160): string {
   }
 }
 
+const TAG_COLORS = [
+  "#ef4444",
+  "#f59e0b",
+  "#fbbf24",
+  "#22c55e",
+  "#10b981",
+  "#06b6d4",
+  "#3b82f6",
+  "#6366f1",
+  "#a855f7",
+]
+
+function TagEditor({
+  tags,
+  allNotes,
+  onAdd,
+  onUpdate,
+  onDelete,
+}: {
+  tags: TagData[]
+  allNotes: NoteData[]
+  onAdd: (name: string, color?: string) => void
+  onUpdate: (id: string, updates: Partial<TagData>) => void
+  onDelete: (id: string) => void
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [nameInput, setNameInput] = useState("")
+  const [colorInput, setColorInput] = useState<string | undefined>(TAG_COLORS[0])
+  const [newName, setNewName] = useState("")
+  const [newColor, setNewColor] = useState<string>(TAG_COLORS[0])
+
+  const startEdit = (t: TagData) => {
+    setEditingId(t.id)
+    setNameInput(t.name)
+    setColorInput(t.color)
+  }
+  const saveEdit = () => {
+    if (!editingId) return
+    onUpdate(editingId, { name: nameInput.trim(), color: colorInput })
+    setEditingId(null)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        {tags.map((t) => {
+          const count = allNotes.filter((n) => (n.tagIds || []).includes(t.id)).length
+          const isEditing = editingId === t.id
+          return (
+            <div key={t.id} className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block size-3 rounded-full"
+                    style={{ backgroundColor: (isEditing ? colorInput : t.color) || TAG_COLORS[0] }}
+                  />
+                  {isEditing ? (
+                    <Input
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      className="h-7 w-48"
+                    />
+                  ) : (
+                    <span className="font-medium">{t.name}</span>
+                  )}
+                  <span className="text-xs text-muted-foreground">{count}</span>
+                </div>
+                {isEditing && (
+                  <div className="mt-2 flex items-center gap-2">
+                    {TAG_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        className="size-5 rounded-full border"
+                        style={{ backgroundColor: c, boxShadow: colorInput === c ? "0 0 0 2px var(--ring)" : undefined }}
+                        onClick={() => setColorInput(c)}
+                        aria-label="Pick color"
+                      />
+                    ))}
+                    <Button variant="outline" size="sm" onClick={saveEdit}>
+                      Save
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon-sm" onClick={() => startEdit(t)} aria-label="Edit">
+                  <Pencil />
+                </Button>
+                <Button variant="ghost" size="icon-sm" onClick={() => onDelete(t.id)} aria-label="Delete" className="text-red-600">
+                  <Trash2 />
+                </Button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <Separator />
+      <div className="space-y-2">
+        <div className="text-sm font-medium">Add New Label</div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block size-4 rounded-full border" style={{ backgroundColor: newColor }} />
+          <Input
+            placeholder="New label name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <Button
+            onClick={() => {
+              if (!newName.trim()) return
+              onAdd(newName.trim(), newColor)
+              setNewName("")
+            }}
+            aria-label="Add label"
+          >
+            <Plus />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          {TAG_COLORS.map((c) => (
+            <button
+              key={c}
+              className="size-6 rounded-full border"
+              style={{ backgroundColor: c, boxShadow: newColor === c ? "0 0 0 2px var(--ring)" : undefined }}
+              onClick={() => setNewColor(c)}
+              aria-label="Select color"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function NotesPage() {
   const router = useRouter()
   const { create, loading } = useCreateNote()
@@ -106,6 +240,7 @@ export default function NotesPage() {
   }, [currentFolderId])
 
   const { notes } = useNotes({ folderId: currentFolderId, archived, search })
+  const { notes: allNotes } = useNotes()
 
   const folderPath = useMemo(() => folderStorage.getFolderPath(currentFolderId || ""), [currentFolderId])
 
@@ -132,6 +267,18 @@ export default function NotesPage() {
       createdAt: new Date().toISOString(),
     }
     const next = [...tags, tag]
+    setTags(next)
+    localStorage.setItem("tags", JSON.stringify(next))
+  }
+
+  const handleUpdateTag = (id: string, updates: Partial<TagData>) => {
+    const next = tags.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t))
+    setTags(next)
+    localStorage.setItem("tags", JSON.stringify(next))
+  }
+
+  const handleDeleteTag = (id: string) => {
+    const next = tags.filter((t) => t.id !== id)
     setTags(next)
     localStorage.setItem("tags", JSON.stringify(next))
   }
@@ -209,35 +356,13 @@ export default function NotesPage() {
                     <DialogHeader>
                       <DialogTitle>Edit Labels</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        {tags.map((t) => (
-                          <div key={t.id} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-block size-3 rounded-full"
-                                style={{ backgroundColor: t.color || "#8884d8" }}
-                              />
-                              <span>{t.name}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input placeholder="New label name" id="new-label-name-mobile" />
-                        <Button
-                          onClick={() => {
-                            const input = document.getElementById("new-label-name-mobile") as HTMLInputElement | null
-                            const name = input?.value?.trim()
-                            if (!name) return
-                            handleAddTag(name)
-                            if (input) input.value = ""
-                          }}
-                        >
-                          Add
-                        </Button>
-                      </div>
-                    </div>
+                    <TagEditor
+                      tags={tags}
+                      allNotes={allNotes}
+                      onAdd={handleAddTag}
+                      onUpdate={handleUpdateTag}
+                      onDelete={handleDeleteTag}
+                    />
                   </DialogContent>
                 </Dialog>
 
@@ -316,35 +441,13 @@ export default function NotesPage() {
               <DialogHeader>
                 <DialogTitle>Edit Labels</DialogTitle>
               </DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  {tags.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-block size-3 rounded-full"
-                          style={{ backgroundColor: t.color || "#8884d8" }}
-                        />
-                        <span>{t.name}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input placeholder="New label name" id="new-label-name" />
-                  <Button
-                    onClick={() => {
-                      const input = document.getElementById("new-label-name") as HTMLInputElement | null
-                      const name = input?.value?.trim()
-                      if (!name) return
-                      handleAddTag(name)
-                      if (input) input.value = ""
-                    }}
-                  >
-                    Add
-                  </Button>
-                </div>
-              </div>
+              <TagEditor
+                tags={tags}
+                allNotes={allNotes}
+                onAdd={handleAddTag}
+                onUpdate={handleUpdateTag}
+                onDelete={handleDeleteTag}
+              />
             </DialogContent>
           </Dialog>
 

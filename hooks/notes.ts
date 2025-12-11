@@ -85,8 +85,6 @@ export function useNotes(filters?: { folderId?: string; archived?: boolean; sear
     }
     if (filters?.folderId) {
       result = result.filter((n) => n.folderId === filters.folderId)
-    } else if (filters?.folderId === undefined) {
-      result = result.filter((n) => !n.folderId)
     }
     if (filters?.search) {
       const q = filters.search.toLowerCase()
