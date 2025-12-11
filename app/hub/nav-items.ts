@@ -11,16 +11,7 @@ export type HubNavItem = {
 export const hubNav: HubNavItem[] = [
   { title: "Início", href: "/hub", icon: Home },
   { title: "Perfil", href: "/hub/profile", icon: User },
-  {
-    title: "Notas",
-    icon: FileText,
-    children: [
-      { title: "Notas", href: "/hub/notes", icon: FileText },
-      { title: "Favoritos", href: "/hub/favorites", icon: Star },
-      { title: "Arquivadas", href: "/hub/archived", icon: Archive },
-      { title: "Lixeira", href: "/hub/trash", icon: Trash2 },
-    ],
-  },
+{ title: "Notas", href: "/hub/notes", icon: FileText },
   {
     title: "Espiritual",
     icon: BookOpen,
