@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState, useCallback } from "react"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
-import type { NoteData } from "@/types"
+import type { NoteData, TagData, FolderData } from "@/types"
 import { createNote, subscribeNote, subscribeNotes, updateNote } from "@/lib/notes"
+import { subscribeTags } from "@/lib/tags"
+import { subscribeFolders } from "@/lib/folders"
 
 export function useCurrentUserId() {
   const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
@@ -63,7 +65,7 @@ export function useCreateNote() {
   return { create, loading, canCreate }
 }
 
-export function useNotes(filters?: { folderId?: string; archived?: boolean; search?: string }) {
+export function useNotes(filters?: { folderId?: string; archived?: boolean; trashed?: boolean; search?: string }) {
   const userId = useCurrentUserId()
   const [notes, setNotes] = useState<NoteData[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +82,11 @@ export function useNotes(filters?: { folderId?: string; archived?: boolean; sear
 
   const filtered = useMemo(() => {
     let result = notes
+    if (filters?.trashed !== undefined) {
+      result = result.filter((n) => (!!n.trashed) === !!filters.trashed)
+    } else {
+      result = result.filter((n) => !n.trashed)
+    }
     if (filters?.archived !== undefined) {
       result = result.filter((n) => (filters.archived ? n.archived : !n.archived))
     }
@@ -97,4 +104,40 @@ export function useNotes(filters?: { folderId?: string; archived?: boolean; sear
   }, [notes, filters?.archived, filters?.folderId, filters?.search])
 
   return { notes: filtered, loading }
+}
+
+export function useTags() {
+  const userId = useCurrentUserId()
+  const [tags, setTags] = useState<TagData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!userId) return
+    setLoading(true)
+    const unsub = subscribeTags(userId, (t) => {
+      setTags(t)
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [userId])
+
+  return { tags, loading }
+}
+
+export function useFolders() {
+  const userId = useCurrentUserId()
+  const [folders, setFolders] = useState<FolderData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!userId) return
+    setLoading(true)
+    const unsub = subscribeFolders(userId, (f) => {
+      setFolders(f)
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [userId])
+
+  return { folders, loading }
 }

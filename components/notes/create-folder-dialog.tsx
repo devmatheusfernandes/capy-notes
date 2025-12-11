@@ -1,0 +1,55 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { FolderPlus } from "lucide-react"
+
+export default function CreateFolderDialog({
+  onCreate,
+  triggerText = "Nova Pasta",
+  iconOnly = false,
+}: {
+  onCreate: (name: string) => void | Promise<void>
+  triggerText?: string
+  iconOnly?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState("")
+
+  const submit = async () => {
+    const n = name.trim()
+    if (!n) return
+    await onCreate(n)
+    setName("")
+    setOpen(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size={iconOnly ? "icon" : "sm"} aria-label="Criar pasta">
+          <FolderPlus className={iconOnly ? "h-4 w-4" : "mr-2 h-4 w-4"} />
+          {iconOnly ? null : triggerText}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Criar nova pasta</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input
+            placeholder="Nome da pasta"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button onClick={submit} disabled={!name.trim()}>Criar</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

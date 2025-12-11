@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore"
+import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
 import type { NoteData } from "@/types"
 
 export async function createNote(userId: string, overrides: Partial<NoteData> = {}): Promise<NoteData> {
@@ -13,6 +13,7 @@ export async function createNote(userId: string, overrides: Partial<NoteData> = 
     ...(overrides.tagIds !== undefined ? { tagIds: overrides.tagIds } : {}),
     ...(overrides.folderId !== undefined ? { folderId: overrides.folderId } : {}),
     archived: overrides.archived ?? false,
+    trashed: overrides.trashed ?? false,
     pinned: overrides.pinned ?? false,
     createdAt: now,
     updatedAt: now,
@@ -49,4 +50,9 @@ export async function updateNote(userId: string, noteId: string, updates: Partia
     Object.entries(updates).filter(([, v]) => v !== undefined)
   ) as Partial<NoteData>
   await updateDoc(ref, { ...safeUpdates, updatedAt: now })
+}
+
+export async function deleteNote(userId: string, noteId: string) {
+  const ref = doc(db, "users", userId, "notes", noteId)
+  await deleteDoc(ref)
 }

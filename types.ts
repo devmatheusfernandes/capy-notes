@@ -15,6 +15,7 @@ export interface NoteData {
   tagIds?: string[]
   folderId?: string
   archived?: boolean
+  trashed?: boolean
   pinned?: boolean
   createdAt: string
   updatedAt: string
@@ -25,6 +26,8 @@ export interface FolderData {
   name: string
   parentId?: string
   color?: string
+  archived?: boolean
+  trashed?: boolean
   createdAt: string
   updatedAt: string
 }
