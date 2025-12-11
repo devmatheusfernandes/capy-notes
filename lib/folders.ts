@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField } from "firebase/firestore"
 import type { FolderData } from "@/types"
 
 export async function createFolder(userId: string, name: string, parentId?: string, color?: string): Promise<FolderData> {
@@ -31,7 +31,15 @@ export function subscribeFolders(userId: string, onData: (folders: FolderData[])
 export async function updateFolder(userId: string, folderId: string, updates: Partial<FolderData>) {
   const ref = doc(db, "users", userId, "folders", folderId)
   const now = new Date().toISOString()
-  const safe = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined)) as Partial<FolderData>
+  const entries = Object.entries(updates)
+  const safe: Record<string, unknown> = {}
+  for (const [k, v] of entries) {
+    if (k === "parentId" && v === undefined) {
+      safe[k] = deleteField()
+      continue
+    }
+    if (v !== undefined) safe[k] = v as unknown
+  }
   await updateDoc(ref, { ...safe, updatedAt: now })
 }
 

@@ -90,8 +90,12 @@ export function useNotes(filters?: { folderId?: string; archived?: boolean; tras
     if (filters?.archived !== undefined) {
       result = result.filter((n) => (filters.archived ? n.archived : !n.archived))
     }
-    if (filters?.folderId) {
-      result = result.filter((n) => n.folderId === filters.folderId)
+    if (filters && Object.prototype.hasOwnProperty.call(filters, "folderId")) {
+      if (filters.folderId === undefined) {
+        result = result.filter((n) => n.folderId === undefined)
+      } else {
+        result = result.filter((n) => n.folderId === filters.folderId)
+      }
     }
     if (filters?.search) {
       const q = filters.search.toLowerCase()
@@ -101,7 +105,7 @@ export function useNotes(filters?: { folderId?: string; archived?: boolean; tras
       )
     }
     return result
-  }, [notes, filters?.archived, filters?.folderId, filters?.search])
+  }, [notes, filters?.archived, filters?.folderId, filters?.search, filters?.trashed])
 
   return { notes: filtered, loading }
 }

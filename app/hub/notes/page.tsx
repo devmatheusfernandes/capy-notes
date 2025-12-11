@@ -4,8 +4,15 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateNote, useNotes, useCurrentUserId, useFolders, useTags } from "@/hooks/notes";
+import {
+  useCreateNote,
+  useNotes,
+  useCurrentUserId,
+  useFolders,
+  useTags,
+} from "@/hooks/notes";
 import { getFolderPath, getSubfolders } from "@/lib/folders";
+import { updateNote } from "@/lib/notes";
 import {
   LayoutGrid,
   List as ListIcon,
@@ -41,13 +48,12 @@ import FolderBreadcrumbs from "@/components/notes/folder-breadcrumbs";
 import TagEditorDialog from "@/components/notes/tag-editor-dialog";
 import MobileActionsSheet from "@/components/notes/mobile-actions-sheet";
 import CreateFolderDialog from "@/components/notes/create-folder-dialog";
-import { cn } from "@/lib/utils";
+import { cn, toggleNoteChecklistItem } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import GenericItem from "@/components/notes/generic-item";
-import { getPreviewText } from "@/lib/note-preview";
 import ConfirmDialog from "@/components/notes/confirm-dialog";
+import { NoteCard } from "@/components/notes/note-card";
+import FolderItem from "@/components/notes/folder-item";
 
-// --- Main Page Component ---
 export default function NotesPage() {
   const router = useRouter();
   const { create, loading } = useCreateNote();
@@ -59,34 +65,59 @@ export default function NotesPage() {
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(
     undefined
   );
+
   const { folders } = useFolders();
   const { tags } = useTags();
   const { notes } = useNotes({ folderId: currentFolderId, archived, search });
   const { notes: allNotes } = useNotes();
+
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [confirm, setConfirm] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+    action: () => void;
+  } | null>(null);
 
+  // Ordenação
   const orderedNotes = useMemo(() => {
     return [...notes].sort((a, b) => {
-      const p = Number(!!b.pinned) - Number(!!a.pinned)
-      if (p !== 0) return p
-      const bu = new Date(b.updatedAt || b.createdAt).getTime()
-      const au = new Date(a.updatedAt || a.createdAt).getTime()
-      return bu - au
-    })
-  }, [notes])
+      const p = Number(!!b.pinned) - Number(!!a.pinned);
+      if (p !== 0) return p;
+      const bu = new Date(b.updatedAt || b.createdAt).getTime();
+      const au = new Date(a.updatedAt || a.createdAt).getTime();
+      return bu - au;
+    });
+  }, [notes]);
 
   const visibleFolders = useMemo(() => {
-    let result = folders
-    result = result.filter((f) => (archived ? !!f.archived : !f.archived))
-    result = result.filter((f) => !f.trashed)
-    result = result.filter((f) => f.parentId === (currentFolderId === undefined ? undefined : currentFolderId))
-    return result
-  }, [folders, archived, currentFolderId])
+    let result = folders;
+    result = result.filter((f) => (archived ? !!f.archived : !f.archived));
+    result = result.filter((f) => !f.trashed);
+    result = result.filter(
+      (f) =>
+        f.parentId ===
+        (currentFolderId === undefined ? undefined : currentFolderId)
+    );
+    return result;
+  }, [folders, archived, currentFolderId]);
 
   const hasSelection = selectedNotes.length + selectedFolders.length > 0;
 
-  const [confirm, setConfirm] = useState<{ open: boolean; title: string; description?: string; action: () => void } | null>(null)
+  // Handler para marcar item do checklist sem abrir a nota
+  const handleCheckItem = async (noteId: string, itemIndex: number) => {
+    if (!userId) return;
+    const note = notes.find((n) => n.id === noteId);
+    if (!note) return;
+
+    const newContent = toggleNoteChecklistItem(note, itemIndex);
+    try {
+      await updateNote(userId, noteId, { content: newContent });
+    } catch (error) {
+      console.error("Failed to update checklist", error);
+    }
+  };
 
   const clearSelection = () => {
     setSelectedNotes([]);
@@ -144,27 +175,29 @@ export default function NotesPage() {
     handleTogglePin,
   } = actions;
 
-  // --- Reusable Menu Logic ---
+  const moveFolders = useMemo(() => folders.filter((f) => !f.archived && !f.trashed), [folders])
+
+  // Menus Reutilizáveis
   const getMoveSubmenu = (onMove: (targetId: string | undefined) => void) => (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
         <Move className="mr-2 h-4 w-4" /> Mover para
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="max-h-[300px] overflow-y-auto">
-        <DropdownMenuItem onClick={() => onMove(undefined)}>
+        <DropdownMenuItem onSelect={() => onMove(undefined)}>
           Início
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {getSubfolders(folders, undefined).map((root) => (
+        {getSubfolders(moveFolders, undefined).map((root) => (
           <DropdownMenuSub key={root.id}>
             <DropdownMenuSubTrigger>{root.name}</DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => onMove(root.id)}>
+              <DropdownMenuItem onSelect={() => onMove(root.id)}>
                 Mover aqui
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {getSubfolders(folders, root.id).map((sub) => (
-                <DropdownMenuItem key={sub.id} onClick={() => onMove(sub.id)}>
+              {getSubfolders(moveFolders, root.id).map((sub) => (
+                <DropdownMenuItem key={sub.id} onSelect={() => onMove(sub.id)}>
                   {sub.name}
                 </DropdownMenuItem>
               ))}
@@ -185,14 +218,14 @@ export default function NotesPage() {
           Início
         </ContextMenuItem>
         <ContextMenuSeparator />
-        {getSubfolders(folders, undefined).map((root) => (
+        {getSubfolders(moveFolders, undefined).map((root) => (
           <ContextMenuSub key={root.id}>
             <ContextMenuSubTrigger>{root.name}</ContextMenuSubTrigger>
             <ContextMenuSubContent>
               <ContextMenuItem onSelect={() => onMove(root.id)}>
                 Mover aqui
               </ContextMenuItem>
-              {getSubfolders(folders, root.id).map((sub) => (
+              {getSubfolders(moveFolders, root.id).map((sub) => (
                 <ContextMenuItem key={sub.id} onSelect={() => onMove(sub.id)}>
                   {sub.name}
                 </ContextMenuItem>
@@ -233,7 +266,7 @@ export default function NotesPage() {
         </div>
       </div>
 
-      {/* Desktop Sidebar (Sticky) */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:block md:col-span-3 lg:col-span-2 space-y-4 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto pr-2">
         <Button
           className="w-full"
@@ -270,8 +303,6 @@ export default function NotesPage() {
             <Trash2 className="mr-2 h-4 w-4" /> Lixeira
           </Button>
         </nav>
-
-        {/* Labels Section */}
         <div className="pt-4 border-t">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase">
@@ -304,7 +335,6 @@ export default function NotesPage() {
 
       {/* Main Content */}
       <main className="col-span-12 md:col-span-9 lg:col-span-10 space-y-4 min-h-[80vh]">
-        {/* Desktop Header & Controls */}
         <div className="hidden md:flex items-center justify-between bg-background z-10 py-1">
           <FolderBreadcrumbs
             path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
@@ -326,170 +356,143 @@ export default function NotesPage() {
           </div>
         </div>
 
-        {/* Selection / Bulk Actions Bar (Sticky & Floating) */}
-        {hasSelection && (
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
-            className="fixed inset-x-4 bottom-4 md:sticky md:top-4 md:bottom-auto z-50 flex justify-center"
-          >
-            <div className="bg-foreground text-background dark:bg-zinc-800 dark:text-zinc-100 rounded-xl shadow-2xl border px-4 py-2 flex items-center gap-2 md:gap-4 max-w-full overflow-x-auto">
-              <div className="flex items-center gap-2 border-r border-white/20 pr-4 mr-2">
-                <span className="font-bold text-sm whitespace-nowrap">
-                  {selectedNotes.length + selectedFolders.length} selecionado(s)
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearSelection}
-                  className="h-6 w-6 hover:bg-white/20 text-current"
-                >
-                  <X size={14} />
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={selectAllVisible}
-                  className="hidden sm:flex hover:bg-white/10 hover:text-current"
-                >
-                  Todos
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="hover:bg-white/10 hover:text-current"
-                    >
-                      <Move size={18} />
-                    </Button>
-                  </DropdownMenuTrigger>
+        {/* Floating Bulk Actions */}
+        <AnimatePresence>
+          {hasSelection && (
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              className="fixed inset-x-4 bottom-4 md:sticky md:top-4 md:bottom-auto z-50 flex justify-center"
+            >
+              <div className="bg-foreground text-background dark:bg-zinc-800 dark:text-zinc-100 rounded-xl shadow-2xl border px-4 py-2 flex items-center gap-2 md:gap-4 max-w-full overflow-x-auto">
+                <div className="flex items-center gap-2 border-r border-white/20 pr-4 mr-2">
+                  <span className="font-bold text-sm whitespace-nowrap">
+                    {selectedNotes.length + selectedFolders.length}{" "}
+                    selecionado(s)
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearSelection}
+                    className="h-6 w-6 hover:bg-white/20 text-current"
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={selectAllVisible}
+                    className="hidden sm:flex hover:bg-white/10 hover:text-current"
+                  >
+                    Todos
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-white/10 hover:text-current"
+                      >
+                        <Move size={18} />
+                      </Button>
+                    </DropdownMenuTrigger>
                   <DropdownMenuContent align="center">
-                    <DropdownMenuItem onClick={() => bulkMove(undefined)}>
+                    <DropdownMenuItem onSelect={() => bulkMove(undefined)}>
                       Início
                     </DropdownMenuItem>
-                    {getSubfolders(folders, undefined).map((f) => (
+                    {getSubfolders(moveFolders, undefined).map((f) => (
                       <DropdownMenuItem
                         key={f.id}
-                        onClick={() => bulkMove(f.id)}
+                        onSelect={() => bulkMove(f.id)}
                       >
                         {f.name}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={bulkArchive}
-                  title="Arquivar"
-                  className="hover:bg-white/10 hover:text-current"
-                >
-                  <Archive size={18} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={bulkPin}
-                  title="Fixar"
-                  className="hover:bg-white/10 hover:text-current"
-                >
-                  <Pin size={18} />
-                </Button>
-
-                {selectedNotes.length > 0 && selectedFolders.length === 0 && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setConfirm({
-                      open: true,
-                      title: "Mover para Lixeira",
-                      description: "As notas selecionadas serão movidas para a Lixeira.",
-                      action: () => bulkDelete("keep"),
-                    })}
-                    className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                    onClick={bulkArchive}
+                    title="Arquivar"
+                    className="hover:bg-white/10 hover:text-current"
                   >
-                    <Trash2 size={18} />
+                    <Archive size={18} />
                   </Button>
-                )}
-                {selectedFolders.length > 0 && selectedNotes.length === 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={bulkPin}
+                    title="Fixar"
+                    className="hover:bg-white/10 hover:text-current"
+                  >
+                    <Pin size={18} />
+                  </Button>
+
+                  {/* Lógica de Lixeira para Bulk Actions */}
+                  {selectedNotes.length > 0 && selectedFolders.length === 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setConfirm({
+                          open: true,
+                          title: "Mover para Lixeira",
+                          description:
+                            "Mover notas selecionadas para a lixeira?",
+                          action: () => bulkDelete("keep"),
+                        })
+                      }
+                      className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  )}
+                  {selectedFolders.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setConfirm({
+                          open: true,
+                          title: "Mover para Lixeira",
+                          description:
+                            "Pastas selecionadas (e seus conteúdos) serão movidas para a lixeira.",
+                          action: () => bulkDelete("delete"),
+                        })
+                      }
+                      className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  )}
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                        className="hover:bg-white/10 hover:text-current"
                       >
-                        <Trash2 size={18} />
+                        <MoreVertical size={18} />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => setConfirm({
-                        open: true,
-                        title: "Mover pastas para Lixeira",
-                        description: "As pastas serão movidas para a Lixeira. O conteúdo será movido para Início.",
-                        action: () => bulkDelete("keep"),
-                      })}>
-                        Excluir (manter conteúdo)
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setConfirm({
-                          open: true,
-                          title: "Mover pastas e conteúdo para Lixeira",
-                          description: "As pastas e todo o conteúdo serão movidos para a Lixeira.",
-                          action: () => bulkDelete("delete"),
-                        })}
-                        className="text-red-600"
-                      >
-                        Excluir tudo
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={bulkExport}>
+                        <Download className="mr-2 h-4 w-4" /> Exportar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
-                {selectedFolders.length > 0 && selectedNotes.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setConfirm({
-                      open: true,
-                      title: "Mover seleção para Lixeira",
-                      description: "Há pastas selecionadas. Pastas e conteúdo, além das notas selecionadas, serão movidos para a Lixeira.",
-                      action: () => bulkDelete("delete"),
-                    })}
-                    className="text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                  >
-                    <Trash2 size={18} />
-                  </Button>
-                )}
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="hover:bg-white/10 hover:text-current"
-                    >
-                      <MoreVertical size={18} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={bulkExport}>
-                      <Download className="mr-2 h-4 w-4" /> Exportar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Content List/Grid */}
+        {/* GRID DE CONTEÚDO */}
         <AnimatePresence mode="popLayout">
           <div
             className={cn(
@@ -498,45 +501,36 @@ export default function NotesPage() {
                 : "flex flex-col space-y-2"
             )}
           >
-            {/* Folders */}
+            {/* PASTAS */}
             {visibleFolders.map((f) => (
-              <GenericItem
+              <FolderItem
                 key={f.id}
                 id={f.id}
                 title={f.name}
-                icon={
-                  <Folder
-                    className={
-                      view === "grid"
-                        ? "h-8 w-8 text-primary"
-                        : "h-5 w-5 text-primary"
-                    }
-                  />
-                }
+                icon={<Folder className="text-primary" />}
                 selected={selectedFolders.includes(f.id)}
                 view={view}
                 onToggleSelect={toggleFolderSelected}
                 onClick={() => setCurrentFolderId(f.id)}
                 hasSelectionMode={hasSelection}
+                // itemCount={f.noteCount}
                 actionsMenu={
                   <>
                     <DropdownMenuItem
-                      onClick={() => toggleFolderSelected(f.id)}
+                      onSelect={() => toggleFolderSelected(f.id)}
                     >
                       {selectedFolders.includes(f.id)
                         ? "Desmarcar"
                         : "Selecionar"}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                <DropdownMenuItem
-                      onClick={() => handleArchiveFolder(f.id, !!f.archived)}
+                    <DropdownMenuItem
+                      onSelect={() => handleArchiveFolder(f.id, !!f.archived)}
                     >
                       {f.archived ? "Desarquivar" : "Arquivar"}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setCurrentFolderId(f.id)}
-                    >
+                    <DropdownMenuItem onSelect={() => setCurrentFolderId(f.id)}>
                       Abrir
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -546,22 +540,24 @@ export default function NotesPage() {
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent>
                         <DropdownMenuItem
-                          onClick={() => setConfirm({
-                            open: true,
-                            title: "Mover pasta para Lixeira",
-                            description: "Deseja mover apenas a pasta para a Lixeira? O conteúdo vai para Início.",
-                            action: () => handleDeleteFolder(f.id, "keep"),
-                          })}
+                          onSelect={() =>
+                            setConfirm({
+                              open: true,
+                              title: "Excluir pasta",
+                              action: () => handleDeleteFolder(f.id, "keep"),
+                            })
+                          }
                         >
                           Só a pasta
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => setConfirm({
-                            open: true,
-                            title: "Mover pasta e conteúdo para Lixeira",
-                            description: "Deseja mover a pasta e todo o conteúdo para a Lixeira?",
-                            action: () => handleDeleteFolder(f.id, "delete"),
-                          })}
+                          onSelect={() =>
+                            setConfirm({
+                              open: true,
+                              title: "Excluir pasta e conteúdo",
+                              action: () => handleDeleteFolder(f.id, "delete"),
+                            })
+                          }
                         >
                           Pasta e conteúdo
                         </DropdownMenuItem>
@@ -584,84 +580,71 @@ export default function NotesPage() {
                       {f.archived ? "Desarquivar" : "Arquivar"}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuItem
-                      onSelect={() => setCurrentFolderId(f.id)}
-                    >
+                    <ContextMenuItem onSelect={() => setCurrentFolderId(f.id)}>
                       Abrir
                     </ContextMenuItem>
                     <ContextMenuSub>
                       <ContextMenuSubTrigger>Excluir</ContextMenuSubTrigger>
                       <ContextMenuSubContent>
                         <ContextMenuItem
-                          onSelect={() => setConfirm({
-                            open: true,
-                            title: "Excluir pasta",
-                            description: "Deseja excluir apenas a pasta (conteúdo vai para Início)?",
-                            action: () => handleDeleteFolder(f.id, "keep"),
-                          })}
+                          onSelect={() => handleDeleteFolder(f.id, "keep")}
                         >
                           Só a pasta
                         </ContextMenuItem>
                         <ContextMenuItem
-                          onSelect={() => setConfirm({
-                            open: true,
-                            title: "Excluir pasta e conteúdo",
-                            description: "Deseja excluir a pasta e todo o conteúdo? Esta ação não pode ser desfeita.",
-                            action: () => handleDeleteFolder(f.id, "delete"),
-                          })}
+                          onSelect={() => handleDeleteFolder(f.id, "delete")}
                         >
                           Pasta e conteúdo
                         </ContextMenuItem>
                       </ContextMenuSubContent>
                     </ContextMenuSub>
-                    {getContextMenuMoveSubmenu((target) => handleMoveFolder(f.id, target))}
                   </>
                 }
               />
             ))}
 
-            {/* Notes */}
+            {/* NOTAS */}
             {orderedNotes.map((n) => (
-              <GenericItem
+              <NoteCard
                 key={n.id}
-                id={n.id}
-                title={n.title || "Sem título"}
-                subtitle={getPreviewText(n, view === "grid" ? 300 : 120)}
-                icon={null}
-                pinned={!!n.pinned}
+                note={n}
+                tags={tags}
                 selected={selectedNotes.includes(n.id)}
-                view={view}
                 onToggleSelect={toggleNoteSelected}
                 onClick={() => router.push(`/hub/notes/${n.id}`)}
+                onCheck={handleCheckItem}
                 hasSelectionMode={hasSelection}
                 actionsMenu={
                   <>
-                    <DropdownMenuItem onClick={() => toggleNoteSelected(n.id)}>
+                    <DropdownMenuItem onSelect={() => toggleNoteSelected(n.id)}>
                       {selectedNotes.includes(n.id)
                         ? "Desmarcar"
                         : "Selecionar"}
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => handleArchiveNote(n.id, !!n.archived)}
+                      onSelect={() => handleArchiveNote(n.id, !!n.archived)}
                     >
                       {n.archived ? "Desarquivar" : "Arquivar"}
                     </DropdownMenuItem>
                     {getMoveSubmenu((target) => handleMoveNote(n.id, target))}
-                    <DropdownMenuItem onClick={() => handleTogglePin(n.id, !!n.pinned)}>
+                    <DropdownMenuItem
+                      onSelect={() => handleTogglePin(n.id, !!n.pinned)}
+                    >
                       {n.pinned ? "Desafixar" : "Fixar"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportNote(n.id)}>
+                    <DropdownMenuItem onSelect={() => handleExportNote(n.id)}>
                       Exportar
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-red-600"
-                      onClick={() => setConfirm({
-                        open: true,
-                        title: "Excluir nota",
-                        description: "Tem certeza que deseja excluir esta nota?",
-                        action: () => handleDeleteNote(n.id),
-                      })}
+                      onSelect={() =>
+                        setConfirm({
+                          open: true,
+                          title: "Excluir nota",
+                          action: () => handleDeleteNote(n.id),
+                        })
+                      }
                     >
                       Excluir
                     </DropdownMenuItem>
@@ -681,7 +664,9 @@ export default function NotesPage() {
                     {getContextMenuMoveSubmenu((target) =>
                       handleMoveNote(n.id, target)
                     )}
-                    <ContextMenuItem onSelect={() => handleTogglePin(n.id, !!n.pinned)}>
+                    <ContextMenuItem
+                      onSelect={() => handleTogglePin(n.id, !!n.pinned)}
+                    >
                       {n.pinned ? "Desafixar" : "Fixar"}
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={() => handleExportNote(n.id)}>
@@ -690,12 +675,13 @@ export default function NotesPage() {
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       className="text-red-600"
-                      onSelect={() => setConfirm({
-                        open: true,
-                        title: "Excluir nota",
-                        description: "Tem certeza que deseja excluir esta nota?",
-                        action: () => handleDeleteNote(n.id),
-                      })}
+                      onSelect={() =>
+                        setConfirm({
+                          open: true,
+                          title: "Excluir nota",
+                          action: () => handleDeleteNote(n.id),
+                        })
+                      }
                     >
                       Excluir
                     </ContextMenuItem>
@@ -718,6 +704,7 @@ export default function NotesPage() {
           </div>
         )}
       </main>
+
       {confirm && (
         <ConfirmDialog
           open={confirm.open}
@@ -725,9 +712,9 @@ export default function NotesPage() {
           description={confirm.description}
           onCancel={() => setConfirm(null)}
           onConfirm={() => {
-            const act = confirm.action
-            setConfirm(null)
-            act()
+            const act = confirm.action;
+            setConfirm(null);
+            act();
           }}
         />
       )}

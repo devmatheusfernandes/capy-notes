@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField } from "firebase/firestore"
 import type { NoteData } from "@/types"
 
 export async function createNote(userId: string, overrides: Partial<NoteData> = {}): Promise<NoteData> {
@@ -46,9 +46,15 @@ export function subscribeNotes(userId: string, onData: (notes: NoteData[]) => vo
 export async function updateNote(userId: string, noteId: string, updates: Partial<NoteData>) {
   const ref = doc(db, "users", userId, "notes", noteId)
   const now = new Date().toISOString()
-  const safeUpdates = Object.fromEntries(
-    Object.entries(updates).filter(([, v]) => v !== undefined)
-  ) as Partial<NoteData>
+  const entries = Object.entries(updates)
+  const safeUpdates: Record<string, unknown> = {}
+  for (const [k, v] of entries) {
+    if (k === "folderId" && v === undefined) {
+      safeUpdates[k] = deleteField()
+      continue
+    }
+    if (v !== undefined) safeUpdates[k] = v as unknown
+  }
   await updateDoc(ref, { ...safeUpdates, updatedAt: now })
 }
 

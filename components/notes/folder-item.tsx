@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreVertical, Pin } from "lucide-react"
+import { MoreVertical, Pin, Folder as FolderIcon } from "lucide-react"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/components/ui/context-menu"
 
-export interface ItemProps {
+export interface FolderItemProps {
   id: string
   title: string
-  subtitle?: string
-  icon: React.ReactNode
+  itemCount?: string | number // Renomeado de subtitle para ser mais semântico
+  icon?: React.ReactNode // Opcional, usa default se não passar
   selected: boolean
   view: "list" | "grid"
   onToggleSelect: (id: string) => void
@@ -23,10 +23,10 @@ export interface ItemProps {
   pinned?: boolean
 }
 
-export default function GenericItem({
+export default function FolderItem({
   id,
   title,
-  subtitle,
+  itemCount,
   icon,
   selected,
   view,
@@ -36,15 +36,15 @@ export default function GenericItem({
   actionsMenu,
   hasSelectionMode,
   pinned,
-}: ItemProps) {
+}: FolderItemProps) {
   const isGrid = view === "grid"
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
       className={cn("break-inside-avoid mb-3", isGrid ? "w-full" : "")}
     >
@@ -52,9 +52,13 @@ export default function GenericItem({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              "relative group rounded-lg border p-4 transition-all cursor-pointer hover:bg-accent hover:text-accent-foreground",
-              selected ? "border-primary bg-accent/50" : "border-border",
-              isGrid ? "flex flex-col h-auto gap-3 items-start justify-start" : "flex items-center gap-4 h-auto min-h-[5rem]"
+              "relative group rounded-xl border p-4 transition-all cursor-pointer hover:bg-accent hover:text-accent-foreground transition-all duration-300 ease-in-out",
+              selected ? "border-primary bg-accent/50 ring-1 ring-primary/20" : "border-border/60 bg-card",
+              // Grid: Compacto e centrado verticalmente se pouco conteúdo
+              // List: Row padrão
+              isGrid 
+                ? "flex flex-row gap-3 h-auto min-h-[4rem] justify-center items-center" 
+                : "flex items-center gap-4 h-16"
             )}
             onClick={(e) => {
               if (hasSelectionMode) {
@@ -66,32 +70,54 @@ export default function GenericItem({
               onClick()
             }}
           >
-            {icon ? <div className="shrink-0 text-muted-foreground">{icon}</div> : null}
+            {/* Ícone da Pasta */}
+            <div className={cn(
+              "shrink-0 flex items-center justify-center rounded-lg transition-colors",
+              isGrid ? "bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 p-2 w-fit" : "text-blue-600 dark:text-blue-400"
+            )}>
+              {icon || <FolderIcon size={isGrid ? 24 : 20} />}
+            </div>
+
+            {/* Conteúdo de Texto */}
             <div className="flex-1 min-w-0 w-full">
-              <div className="font-medium flex items-center justify-between gap-2 mb-1">
-                <span className="truncate w-full flex items-center gap-2">
-                  {pinned ? <Pin className="h-3 w-3 text-primary" /> : null}
+              <div className="font-semibold flex items-center gap-2 mb-0.5">
+                <span className="truncate flex-1 flex items-center gap-2">
                   {title}
+                  {pinned && <Pin className="h-3 w-3 text-muted-foreground rotate-45" />}
                 </span>
               </div>
-              <div className={cn("text-xs text-muted-foreground break-words whitespace-pre-wrap", isGrid ? "line-clamp-[8]" : "line-clamp-1")}>{subtitle}</div>
+              
+              {/* Contagem de itens (subtítulo) */}
+              {itemCount !== undefined && (
+                <div className="text-xs text-muted-foreground truncate">
+                  {itemCount}
+                </div>
+              )}
             </div>
+
+            {/* Controles (Checkbox & Menu) */}
             <div
               className={cn(
-                "absolute top-2 right-2 flex items-center gap-1",
+                "absolute top-2 right-2 flex items-center gap-1 z-10",
+                // No mobile ou se selecionado: visível. Desktop hover: visível.
                 selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity md:opacity-0"
               )}
             >
               <Checkbox
                 checked={selected}
                 onCheckedChange={() => onToggleSelect(id)}
-                className="bg-background data-[state=checked]:bg-primary"
+                className="bg-background/80 backdrop-blur data-[state=checked]:bg-primary shadow-sm border-muted-foreground/30"
                 data-card-control="true"
                 onClick={(e) => e.stopPropagation()}
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 md:h-8 md:w-8 bg-background/80 backdrop-blur-sm" data-card-control="true">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full bg-background/80 backdrop-blur shadow-sm hover:bg-background" 
+                    data-card-control="true"
+                  >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
