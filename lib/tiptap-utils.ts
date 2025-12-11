@@ -12,6 +12,8 @@ import {
   type Editor,
   type NodeWithPos,
 } from "@tiptap/react"
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"
+import { storage, auth } from "@/lib/firebase"
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
@@ -363,7 +365,6 @@ export const handleImageUpload = async (
   onProgress?: (event: { progress: number }) => void,
   abortSignal?: AbortSignal
 ): Promise<string> => {
-  // Validate file
   if (!file) {
     throw new Error("No file provided")
   }
@@ -374,17 +375,82 @@ export const handleImageUpload = async (
     )
   }
 
-  // For demo/testing: Simulate upload progress. In production, replace the following code
-  // with your own upload implementation.
-  for (let progress = 0; progress <= 100; progress += 10) {
-    if (abortSignal?.aborted) {
-      throw new Error("Upload cancelled")
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    onProgress?.({ progress })
-  }
+  const userId = auth.currentUser?.uid || "anonymous"
+  const ext = (() => {
+    const parts = file.name.split(".")
+    return parts.length > 1 ? parts.pop()!.toLowerCase() : "bin"
+  })()
+  const path = `notes/${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const storageRef = ref(storage, path)
+  const task = uploadBytesResumable(storageRef, file)
 
-  return "/images/tiptap-ui-placeholder-image.jpg"
+  return await new Promise<string>((resolve, reject) => {
+    const unsubscribe = task.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = Math.round(
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        )
+        onProgress?.({ progress })
+      },
+      (error) => {
+        reject(error)
+      },
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref)
+          resolve(url)
+        } catch (err) {
+          reject(err as Error)
+        }
+      }
+    )
+
+    if (abortSignal) {
+      const onAbort = () => {
+        try {
+          task.cancel()
+        } catch {}
+        unsubscribe()
+        reject(new Error("Upload cancelled"))
+      }
+      if (abortSignal.aborted) {
+        onAbort()
+      } else {
+        abortSignal.addEventListener("abort", onAbort, { once: true })
+      }
+    }
+  })
+}
+
+export function isFirebaseStorageUrl(url: string): boolean {
+  return /^https:\/\/firebasestorage\.googleapis\.com\//.test(url)
+}
+
+export function getStoragePathFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (u.hostname !== "firebasestorage.googleapis.com") return null
+    const match = u.pathname.match(/\/v0\/b\/[^/]+\/o\/(.+)/)
+    if (!match || !match[1]) return null
+    const encoded = match[1]
+    const qIndex = encoded.indexOf("?")
+    const raw = qIndex >= 0 ? encoded.substring(0, qIndex) : encoded
+    return decodeURIComponent(raw)
+  } catch {
+    return null
+  }
+}
+
+export async function deleteImageFromStorage(url: string): Promise<boolean> {
+  const path = getStoragePathFromUrl(url)
+  if (!path) return false
+  try {
+    await deleteObject(ref(storage, path))
+    return true
+  } catch {
+    return false
+  }
 }
 
 type ProtocolOptions = {

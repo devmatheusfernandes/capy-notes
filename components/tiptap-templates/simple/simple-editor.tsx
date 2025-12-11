@@ -69,7 +69,7 @@ import { useCursorVisibility } from "@/hooks/use-cursor-visibility"
 import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle"
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
+import { handleImageUpload, MAX_FILE_SIZE, deleteImageFromStorage } from "@/lib/tiptap-utils"
 
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss"
@@ -197,11 +197,35 @@ export function SimpleEditor({
     "main"
   )
   const toolbarRef = useRef<HTMLDivElement>(null)
+  const prevImageUrlsRef = useRef<Set<string>>(new Set())
+
+  const getImageUrls = (json: JSONContent): string[] => {
+    const urls: string[] = []
+    const walk = (node: any) => {
+      if (!node) return
+      if (node.type === "image" && typeof node?.attrs?.src === "string") {
+        urls.push(node.attrs.src as string)
+      }
+      if (Array.isArray(node.content)) {
+        node.content.forEach(walk)
+      }
+    }
+    walk(json)
+    return urls
+  }
 
   const handleUpdate = useThrottledCallback(() => {
     if (!editor) return
     const json = editor.getJSON()
     onChange?.(json)
+    const current = new Set(getImageUrls(json))
+    const prev = prevImageUrlsRef.current
+    for (const url of prev) {
+      if (!current.has(url) && /^https:\/\/firebasestorage\.googleapis\.com\//.test(url)) {
+        void deleteImageFromStorage(url)
+      }
+    }
+    prevImageUrlsRef.current = current
   }, 400, [onChange])
 
   const editor = useEditor({
@@ -254,6 +278,8 @@ const isFirstRender = useRef(true)
     if (isFirstRender.current) {
       editor.commands.setContent(content as Content)
       isFirstRender.current = false
+      const currentJson = editor.getJSON()
+      prevImageUrlsRef.current = new Set(getImageUrls(currentJson))
     }
   }, [editor, content])
 
