@@ -1,5 +1,6 @@
 import { db } from "@/lib/firebase"
 import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc, deleteDoc, deleteField } from "firebase/firestore"
+import { deleteImageFromStorage } from "@/lib/tiptap-utils"
 import type { NoteData } from "@/types"
 
 export async function createNote(userId: string, overrides: Partial<NoteData> = {}): Promise<NoteData> {
@@ -60,5 +61,19 @@ export async function updateNote(userId: string, noteId: string, updates: Partia
 
 export async function deleteNote(userId: string, noteId: string) {
   const ref = doc(db, "users", userId, "notes", noteId)
+  const snap = await getDoc(ref)
+  if (snap.exists()) {
+    const data = snap.data() as NoteData
+    const urls: string[] = []
+    const walk = (node: any) => {
+      if (!node) return
+      if (node.type === "image" && typeof node?.attrs?.src === "string") {
+        urls.push(node.attrs.src as string)
+      }
+      if (Array.isArray(node?.content)) node.content.forEach(walk)
+    }
+    walk(data.content as any)
+    await Promise.all(urls.map((u) => deleteImageFromStorage(u)))
+  }
   await deleteDoc(ref)
 }
