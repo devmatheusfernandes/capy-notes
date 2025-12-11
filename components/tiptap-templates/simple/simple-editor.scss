@@ -93,3 +93,8 @@ body,
   background-color: var(--primary-transparent-20);
   border-bottom: 1px dashed currentColor;
 }
+
+.tiptap ::selection {
+  background-color: var(--primary-transparent-20);
+  color: white;
+}

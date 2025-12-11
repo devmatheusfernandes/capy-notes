@@ -1,101 +1,117 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import { EditorContent, EditorContext, useEditor, type Content, type Editor } from "@tiptap/react"
-import type { JSONContent } from "@tiptap/core"
-import { TextSelection } from "@tiptap/pm/state"
+import { useEffect, useRef, useState } from "react";
+import {
+  EditorContent,
+  useEditor,
+  type Content,
+  type Editor,
+} from "@tiptap/react";
+import type { JSONContent } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 
 // --- Tiptap Core Extensions ---
-import { StarterKit } from "@tiptap/starter-kit"
-import { Image } from "@tiptap/extension-image"
-import { TaskItem, TaskList } from "@tiptap/extension-list"
-import { TextAlign } from "@tiptap/extension-text-align"
-import { Typography } from "@tiptap/extension-typography"
-import { Highlight } from "@tiptap/extension-highlight"
-import { Subscript } from "@tiptap/extension-subscript"
-import { Superscript } from "@tiptap/extension-superscript"
-import { Selection } from "@tiptap/extensions"
+import { StarterKit } from "@tiptap/starter-kit";
+import { Image } from "@tiptap/extension-image";
+import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { TextAlign } from "@tiptap/extension-text-align";
+import { Typography } from "@tiptap/extension-typography";
+import { Highlight } from "@tiptap/extension-highlight";
+import { Subscript } from "@tiptap/extension-subscript";
+import { Superscript } from "@tiptap/extension-superscript";
+import { Selection } from "@tiptap/extensions";
 
 // --- UI Primitives ---
-import { Button } from "@/components/tiptap-ui-primitive/button"
-import { Spacer } from "@/components/tiptap-ui-primitive/spacer"
+import { Button } from "@/components/tiptap-ui-primitive/button";
+import { Spacer } from "@/components/tiptap-ui-primitive/spacer";
 import {
   Toolbar,
   ToolbarGroup,
   ToolbarSeparator,
-} from "@/components/tiptap-ui-primitive/toolbar"
+} from "@/components/tiptap-ui-primitive/toolbar";
 
 // --- Tiptap Node ---
-import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension"
-import { HorizontalRule } from "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension"
-import "@/components/tiptap-node/blockquote-node/blockquote-node.scss"
-import "@/components/tiptap-node/code-block-node/code-block-node.scss"
-import "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss"
-import "@/components/tiptap-node/list-node/list-node.scss"
-import "@/components/tiptap-node/image-node/image-node.scss"
-import "@/components/tiptap-node/heading-node/heading-node.scss"
-import "@/components/tiptap-node/paragraph-node/paragraph-node.scss"
+import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension";
+import { HorizontalRule } from "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension";
+import "@/components/tiptap-node/blockquote-node/blockquote-node.scss";
+import "@/components/tiptap-node/code-block-node/code-block-node.scss";
+import "@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss";
+import "@/components/tiptap-node/list-node/list-node.scss";
+import "@/components/tiptap-node/image-node/image-node.scss";
+import "@/components/tiptap-node/heading-node/heading-node.scss";
+import "@/components/tiptap-node/paragraph-node/paragraph-node.scss";
 
 // --- Tiptap UI ---
-import { HeadingDropdownMenu } from "@/components/tiptap-ui/heading-dropdown-menu"
-import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button"
-import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu"
-import { BlockquoteButton } from "@/components/tiptap-ui/blockquote-button"
-import { CodeBlockButton } from "@/components/tiptap-ui/code-block-button"
+import { HeadingDropdownMenu } from "@/components/tiptap-ui/heading-dropdown-menu";
+import { ImageUploadButton } from "@/components/tiptap-ui/image-upload-button";
+import { ListDropdownMenu } from "@/components/tiptap-ui/list-dropdown-menu";
+import { BlockquoteButton } from "@/components/tiptap-ui/blockquote-button";
+import { CodeBlockButton } from "@/components/tiptap-ui/code-block-button";
 import {
   ColorHighlightPopover,
   ColorHighlightPopoverContent,
   ColorHighlightPopoverButton,
-} from "@/components/tiptap-ui/color-highlight-popover"
+} from "@/components/tiptap-ui/color-highlight-popover";
 import {
   LinkPopover,
   LinkContent,
   LinkButton,
-} from "@/components/tiptap-ui/link-popover"
-import { MarkButton } from "@/components/tiptap-ui/mark-button"
-import { TextAlignButton } from "@/components/tiptap-ui/text-align-button"
-import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button"
+} from "@/components/tiptap-ui/link-popover";
+import { MarkButton } from "@/components/tiptap-ui/mark-button";
+import { TextAlignButton } from "@/components/tiptap-ui/text-align-button";
+import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 
 // --- Icons ---
-import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon"
-import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon"
-import { LinkIcon } from "@/components/tiptap-icons/link-icon"
+import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon";
+import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon";
+import { LinkIcon } from "@/components/tiptap-icons/link-icon";
 
 // --- Hooks ---
-import { useIsBreakpoint } from "@/hooks/use-is-breakpoint"
-import { useWindowSize } from "@/hooks/use-window-size"
-import { useCursorVisibility } from "@/hooks/use-cursor-visibility"
+import { useIsBreakpoint } from "@/hooks/use-is-breakpoint";
+import { useWindowSize } from "@/hooks/use-window-size";
+import { useCursorVisibility } from "@/hooks/use-cursor-visibility";
 
 // --- Components ---
-import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle"
+import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle";
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE, deleteImageFromStorage } from "@/lib/tiptap-utils"
+import {
+  handleImageUpload,
+  MAX_FILE_SIZE,
+  deleteImageFromStorage,
+} from "@/lib/tiptap-utils";
 
 // --- Styles ---
-import "@/components/tiptap-templates/simple/simple-editor.scss"
+import "@/components/tiptap-templates/simple/simple-editor.scss";
 
-import { useThrottledCallback } from "@/hooks/use-throttled-callback"
-import { CommentMark } from "@/components/tiptap-extension/comment-mark"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { subscribeComments, createComment, updateComment, deleteComment } from "@/lib/comments"
-import type { CommentData } from "@/types"
-import { Pencil, Trash2, MessageSquarePlus } from "lucide-react"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useThrottledCallback } from "@/hooks/use-throttled-callback";
+import { CommentMark } from "@/components/tiptap-extension/comment-mark";
+import {
+  subscribeComments,
+  createComment,
+  updateComment,
+  deleteComment,
+} from "@/lib/comments";
+import type { CommentData } from "@/types";
+import {
+  Pencil,
+  Trash2,
+  MessageSquarePlus,
+} from "lucide-react"; // Removi icons não usados (PanelRight...) pois estão no Sidebar
+import UniversalSidebar from "@/components/tiptap-templates/simple/universal-sidebar";
 
 const MainToolbarContent = ({
   onHighlighterClick,
   onLinkClick,
   isMobile,
 }: {
-  onHighlighterClick: () => void
-  onLinkClick: () => void
-  isMobile: boolean
+  onHighlighterClick: () => void;
+  onLinkClick: () => void;
+  isMobile: boolean;
 }) => {
   return (
     <>
       <Spacer />
-        <SidebarTrigger />
       <ToolbarGroup>
         <UndoRedoButton action="undo" />
         <UndoRedoButton action="redo" />
@@ -159,15 +175,15 @@ const MainToolbarContent = ({
         <ThemeToggle />
       </ToolbarGroup>
     </>
-  )
-}
+  );
+};
 
 const MobileToolbarContent = ({
   type,
   onBack,
 }: {
-  type: "highlighter" | "link"
-  onBack: () => void
+  type: "highlighter" | "link";
+  onBack: () => void;
 }) => (
   <>
     <ToolbarGroup>
@@ -189,7 +205,7 @@ const MobileToolbarContent = ({
       <LinkContent />
     )}
   </>
-)
+);
 
 export function SimpleEditor({
   content,
@@ -197,57 +213,68 @@ export function SimpleEditor({
   userId,
   noteId,
 }: {
-  content?: Content
-  onChange?: (json: JSONContent) => void
-  userId?: string
-  noteId?: string
+  content?: Content;
+  onChange?: (json: JSONContent) => void;
+  userId?: string;
+  noteId?: string;
 }) {
-  const isMobile = useIsBreakpoint()
-  const { height } = useWindowSize()
+  const isMobile = useIsBreakpoint();
+  const { height } = useWindowSize();
   const [mobileView, setMobileView] = useState<"main" | "highlighter" | "link">(
     "main"
-  )
-  const toolbarRef = useRef<HTMLDivElement>(null)
-  const prevImageUrlsRef = useRef<Set<string>>(new Set())
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false)
-  const [newCommentText, setNewCommentText] = useState("")
-  const pendingCommentIdRef = useRef<string | null>(null)
-  const [hasPendingComment, setHasPendingComment] = useState(false)
-  const [comments, setComments] = useState<CommentData[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const editorRef = useRef<Editor | null>(null)
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  );
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const prevImageUrlsRef = useRef<Set<string>>(new Set());
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [newCommentText, setNewCommentText] = useState("");
+  const pendingCommentIdRef = useRef<string | null>(null);
+  const [hasPendingComment, setHasPendingComment] = useState(false);
+  const [comments, setComments] = useState<CommentData[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editorRef = useRef<Editor | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
 
   const getImageUrls = (json: JSONContent): string[] => {
-    const urls: string[] = []
+    const urls: string[] = [];
     const walk = (node: unknown) => {
-      if (!node || typeof node !== "object") return
-      const n = node as { type?: string; attrs?: { src?: unknown }; content?: unknown[] }
+      if (!node || typeof node !== "object") return;
+      const n = node as {
+        type?: string;
+        attrs?: { src?: unknown };
+        content?: unknown[];
+      };
       if (n.type === "image" && typeof n.attrs?.src === "string") {
-        urls.push(n.attrs.src)
+        urls.push(n.attrs.src);
       }
       if (Array.isArray(n.content)) {
-        n.content.forEach(walk)
+        n.content.forEach(walk);
       }
-    }
-    walk(json)
-    return urls
-  }
+    };
+    walk(json);
+    return urls;
+  };
 
-  const handleUpdate = useThrottledCallback(() => {
-    const ed = editorRef.current
-    if (!ed) return
-    const json = ed.getJSON()
-    onChange?.(json)
-    const current = new Set(getImageUrls(json))
-    const prev = prevImageUrlsRef.current
-    for (const url of prev) {
-      if (!current.has(url) && /^https:\/\/firebasestorage\.googleapis\.com\//.test(url)) {
-        void deleteImageFromStorage(url)
+  const handleUpdate = useThrottledCallback(
+    () => {
+      const ed = editorRef.current;
+      if (!ed) return;
+      const json = ed.getJSON();
+      onChange?.(json);
+      const current = new Set(getImageUrls(json));
+      const prev = prevImageUrlsRef.current;
+      for (const url of prev) {
+        if (
+          !current.has(url) &&
+          /^https:\/\/firebasestorage\.googleapis\.com\//.test(url)
+        ) {
+          void deleteImageFromStorage(url);
+        }
       }
-    }
-    prevImageUrlsRef.current = current
-  }, 400, [onChange])
+      prevImageUrlsRef.current = current;
+    },
+    400,
+    [onChange]
+  );
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -261,19 +288,27 @@ export function SimpleEditor({
       },
       handleClickOn: (_view, _pos, node) => {
         try {
-          const clickedNode = node as unknown as { isText?: boolean; marks?: Array<{ type: { name: string }; attrs: Record<string, unknown> }> }
+          const clickedNode = node as unknown as {
+            isText?: boolean;
+            marks?: Array<{
+              type: { name: string };
+              attrs: Record<string, unknown>;
+            }>;
+          };
           if (clickedNode?.isText && Array.isArray(clickedNode.marks)) {
-            const m = clickedNode.marks.find((mk) => mk.type.name === "comment")
-            const id = (m?.attrs?.id as string | undefined) || null
+            const m = clickedNode.marks.find(
+              (mk) => mk.type.name === "comment"
+            );
+            const id = (m?.attrs?.id as string | undefined) || null;
             if (id) {
-              setActiveCommentId(id)
-              setIsCommentsOpen(true)
+              setActiveCommentId(id);
+              setIsCommentsOpen(true);
             }
           }
         } catch {
           /* noop */
         }
-        return false
+        return false;
       },
     },
     extensions: [
@@ -305,112 +340,128 @@ export function SimpleEditor({
     ],
     content,
     onUpdate: handleUpdate,
-  })
+  });
 
   useEffect(() => {
-    editorRef.current = editor
-  }, [editor])
+    editorRef.current = editor;
+  }, [editor]);
 
-const isFirstRender = useRef(true)
-  
+  const isFirstRender = useRef(true);
+
   useEffect(() => {
-    if (!editor || content === undefined) return
-    
+    if (!editor || content === undefined) return;
+
     // Apenas seta o conteúdo no primeiro render ou quando vem de fora
     if (isFirstRender.current) {
-      editor.commands.setContent(content as Content)
-      isFirstRender.current = false
-      const currentJson = editor.getJSON()
-      prevImageUrlsRef.current = new Set(getImageUrls(currentJson))
+      editor.commands.setContent(content as Content);
+      isFirstRender.current = false;
+      const currentJson = editor.getJSON();
+      prevImageUrlsRef.current = new Set(getImageUrls(currentJson));
     }
-  }, [editor, content])
+  }, [editor, content]);
 
   useEffect(() => {
-    if (!userId || !noteId) return
-    const unsub = subscribeComments(userId, noteId, (list) => setComments(list))
-    return () => unsub()
-  }, [userId, noteId])
+    if (!userId || !noteId) return;
+    const unsub = subscribeComments(userId, noteId, (list) =>
+      setComments(list)
+    );
+    return () => unsub();
+  }, [userId, noteId]);
 
   const selectionHasComment = () => {
-    if (!editor) return false
-    const { state } = editor
-    const { from, to } = state.selection
-    let found = false
+    if (!editor) return false;
+    const { state } = editor;
+    const { from, to } = state.selection;
+    let found = false;
     state.doc.nodesBetween(from, to, (node) => {
       if (node.isText && node.marks.some((m) => m.type.name === "comment")) {
-        found = true
-        return false
+        found = true;
+        return false;
       }
-      return true
-    })
-    return found
-  }
+      return true;
+    });
+    return found;
+  };
 
   const selectionHasText = () => {
-    if (!editor) return false
-    const { selection } = editor.state
-    return !selection.empty
-  }
+    if (!editor) return false;
+    const { selection } = editor.state;
+    return !selection.empty;
+  };
 
   const applyCommentMark = (id: string) => {
-    if (!editor) return false
-    return editor.chain().focus().setMark("comment", { id }).run()
-  }
+    if (!editor) return false;
+    return editor.chain().focus().setMark("comment", { id }).run();
+  };
 
   const selectCommentById = (id: string) => {
-    if (!editor) return
-    const { state, view } = editor
-    let from: number | null = null
-    let to: number | null = null
+    if (!editor) return;
+    const { state, view } = editor;
+    let from: number | null = null;
+    let to: number | null = null;
     state.doc.descendants((node, pos) => {
-      if (!node.isText) return true
-      const has = node.marks.some((m) => m.type.name === "comment" && (m.attrs as Record<string, unknown>)["id"] === id)
+      if (!node.isText) return true;
+      const has = node.marks.some(
+        (m) =>
+          m.type.name === "comment" &&
+          (m.attrs as Record<string, unknown>)["id"] === id
+      );
       if (has) {
-        from = pos
-        to = pos + node.nodeSize
-        return false
+        from = pos;
+        to = pos + node.nodeSize;
+        return false;
       }
-      return true
-    })
+      return true;
+    });
     if (from !== null && to !== null) {
-      const tr = state.tr.setSelection(TextSelection.create(state.doc, from, to)).scrollIntoView()
-      view.dispatch(tr)
+      const tr = state.tr
+        .setSelection(TextSelection.create(state.doc, from, to))
+        .scrollIntoView();
+      view.dispatch(tr);
     }
-  }
+  };
 
   const removeCommentMarks = (id: string) => {
-    if (!editor) return
-    const { state, view } = editor
-    const markType = state.schema.marks.comment
-    let tr = state.tr
+    if (!editor) return;
+    const { state, view } = editor;
+    const markType = state.schema.marks.comment;
+    let tr = state.tr;
     state.doc.descendants((node, pos) => {
-      if (!node.isText) return true
-      const has = node.marks.some((m) => m.type === markType && (m.attrs as Record<string, unknown>)["id"] === id)
+      if (!node.isText) return true;
+      const has = node.marks.some(
+        (m) =>
+          m.type === markType &&
+          (m.attrs as Record<string, unknown>)["id"] === id
+      );
       if (has) {
-        tr = tr.removeMark(pos, pos + node.nodeSize, markType)
+        tr = tr.removeMark(pos, pos + node.nodeSize, markType);
       }
-      return true
-    })
-    view.dispatch(tr)
-  }
+      return true;
+    });
+    view.dispatch(tr);
+  };
 
   const rect = useCursorVisibility({
     editor,
     overlayHeight: 0,
-  })
+  });
 
   useEffect(() => {
-    if (!activeCommentId) return
-    const el = document.getElementById(`comment-${activeCommentId}`)
+    if (!activeCommentId) return;
+    const el = document.getElementById(`comment-${activeCommentId}`);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" })
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [activeCommentId])
-
+  }, [activeCommentId]);
 
   return (
-    <div className="simple-editor-wrapper">
-      <EditorContext.Provider value={{ editor }}>
+    <div className="flex flex-row w-full min-h-screen">
+      <aside
+        className="min-h-screen overflow-y-hidden transition-[width] duration-300 ease-in-out"
+        style={{
+          width: isMobile ? "100%" : isCommentsOpen ? "80%" : "100%",
+        }}
+      >
         <Toolbar
           ref={toolbarRef}
           style={{
@@ -438,20 +489,29 @@ const isFirstRender = useRef(true)
             <Button
               aria-label="Adicionar comentário"
               onClick={async () => {
-                if (selectionHasText() && !selectionHasComment() && userId && noteId && editor) {
-                  const { state } = editor
-                  const { from, to } = state.selection
-                  const snippet = state.doc.textBetween(from, to, "\n")
-              const created = await createComment(userId, noteId, { text: "", snippet })
-              pendingCommentIdRef.current = created.id
-              setHasPendingComment(true)
-              setNewCommentText("")
-              applyCommentMark(created.id)
-              setActiveCommentId(created.id)
-            }
-            setIsCommentsOpen(true)
-          }}
-        >
+                if (
+                  selectionHasText() &&
+                  !selectionHasComment() &&
+                  userId &&
+                  noteId &&
+                  editor
+                ) {
+                  const { state } = editor;
+                  const { from, to } = state.selection;
+                  const snippet = state.doc.textBetween(from, to, "\n");
+                  const created = await createComment(userId, noteId, {
+                    text: "",
+                    snippet,
+                  });
+                  pendingCommentIdRef.current = created.id;
+                  setHasPendingComment(true);
+                  setNewCommentText("");
+                  applyCommentMark(created.id);
+                  setActiveCommentId(created.id);
+                }
+                setIsCommentsOpen(true);
+              }}
+            >
               <MessageSquarePlus className="tiptap-button-icon" />
               Comentar
             </Button>
@@ -463,91 +523,98 @@ const isFirstRender = useRef(true)
           role="presentation"
           className="simple-editor-content"
         />
-
-        <Sheet
-          open={isCommentsOpen}
-          onOpenChange={(open) => {
-            setIsCommentsOpen(open)
-            if (!open) {
-              setNewCommentText("")
-              pendingCommentIdRef.current = null
-              setHasPendingComment(false)
-            }
-          }}
-        >
-          <SheetContent side="right" className="max-w-md">
-            <SheetHeader>
-              <SheetTitle>Comentários</SheetTitle>
-            </SheetHeader>
-            {hasPendingComment && (
-              <div className="p-4">
+      </aside>
+      <UniversalSidebar
+        open={isCommentsOpen}
+        onOpenChange={(open) => {
+          setIsCommentsOpen(open);
+          if (!open) {
+            setNewCommentText("");
+            pendingCommentIdRef.current = null;
+            setHasPendingComment(false);
+          }
+        }}
+        desktopWidth="20%"
+        title="Comentários"
+      >
+        {hasPendingComment && (
+          <div className="p-4">
+            <textarea
+              className="w-full rounded-xs border p-2 text-sm"
+              placeholder="Escreva um comentário…"
+              value={newCommentText}
+              onChange={async (e) => {
+                const text = e.target.value;
+                setNewCommentText(text);
+                if (!userId || !noteId) return;
+                if (hasPendingComment && pendingCommentIdRef.current) {
+                  await updateComment(
+                    userId,
+                    noteId,
+                    pendingCommentIdRef.current,
+                    { text }
+                  );
+                }
+              }}
+            />
+          </div>
+        )}
+        <div className="p-4 flex flex-col gap-2">
+          {comments.map((c) => (
+            <div
+              key={c.id}
+              id={`comment-${c.id}`}
+              className="group relative rounded-xs border p-3 text-sm cursor-pointer"
+              onClick={() => {
+                setActiveCommentId(c.id);
+                selectCommentById(c.id);
+              }}
+            >
+              <div className="text-muted-foreground text-xs mb-2">
+                {c.snippet}
+              </div>
+              <div className="absolute top-2 right-2 hidden gap-1 group-hover:flex">
+                <button
+                  className="rounded-xs bg-secondary px-2 py-1"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    setEditingId((prev) => (prev === c.id ? null : c.id));
+                  }}
+                >
+                  <Pencil className="size-4" />
+                </button>
+                <button
+                  className="rounded-xs bg-destructive px-2 py-1 text-white"
+                  onClick={async (ev) => {
+                    ev.stopPropagation();
+                    if (!userId || !noteId) return;
+                    await deleteComment(userId, noteId, c.id);
+                    removeCommentMarks(c.id);
+                  }}
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+              {editingId === c.id ? (
                 <textarea
-                  className="w-full rounded-xs border p-2 text-sm"
-                  placeholder="Escreva um comentário…"
-                  value={newCommentText}
+                  className="w-full rounded-xs border p-2"
+                  defaultValue={c.text}
                   onChange={async (e) => {
-                    const text = e.target.value
-                    setNewCommentText(text)
-                    if (!userId || !noteId) return
-                    if (hasPendingComment && pendingCommentIdRef.current) {
-                      await updateComment(userId, noteId, pendingCommentIdRef.current, { text })
-                    }
+                    if (!userId || !noteId) return;
+                    await updateComment(userId, noteId, c.id, {
+                      text: e.target.value,
+                    });
                   }}
                 />
-              </div>
-            )}
-            <div className="p-4 flex flex-col gap-2">
-              {comments.map((c) => (
-                <div
-                  key={c.id}
-                  id={`comment-${c.id}`}
-                  className="group relative rounded-xs border p-3 text-sm cursor-pointer"
-                  onClick={() => {
-                    setActiveCommentId(c.id)
-                    selectCommentById(c.id)
-                  }}
-                  >
-                  <div className="text-muted-foreground text-xs mb-2">{c.snippet}</div>
-                  <div className="absolute top-2 right-2 hidden gap-1 group-hover:flex">
-                    <button
-                      className="rounded-xs bg-secondary px-2 py-1"
-                      onClick={(ev) => {
-                        ev.stopPropagation()
-                        setEditingId((prev) => (prev === c.id ? null : c.id))
-                      }}
-                    >
-                      <Pencil className="size-4" />
-                    </button>
-                    <button
-                      className="rounded-xs bg-destructive px-2 py-1 text-white"
-                      onClick={async (ev) => {
-                        ev.stopPropagation()
-                        if (!userId || !noteId) return
-                        await deleteComment(userId, noteId, c.id)
-                        removeCommentMarks(c.id)
-                      }}
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                  {editingId === c.id ? (
-                    <textarea
-                      className="w-full rounded-xs border p-2"
-                      defaultValue={c.text}
-                      onChange={async (e) => {
-                        if (!userId || !noteId) return
-                        await updateComment(userId, noteId, c.id, { text: e.target.value })
-                      }}
-                    />
-                  ) : (
-                    <p className="m-0 whitespace-pre-wrap">{c.text || "(sem conteúdo)"}</p>
-                  )}
-                </div>
-              ))}
+              ) : (
+                <p className="m-0 whitespace-pre-wrap">
+                  {c.text || "(sem conteúdo)"}
+                </p>
+              )}
             </div>
-          </SheetContent>
-        </Sheet>
-      </EditorContext.Provider>
+          ))}
+        </div>
+      </UniversalSidebar>
     </div>
-  )
+  );
 }
