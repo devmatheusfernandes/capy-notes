@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import type { NoteData } from "@/types"
-import { createNote, subscribeNote, updateNote } from "@/lib/notes"
+import { createNote, subscribeNote, subscribeNotes, updateNote } from "@/lib/notes"
 
 export function useCurrentUserId() {
   const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null)
@@ -61,4 +61,42 @@ export function useCreateNote() {
   )
 
   return { create, loading, canCreate }
+}
+
+export function useNotes(filters?: { folderId?: string; archived?: boolean; search?: string }) {
+  const userId = useCurrentUserId()
+  const [notes, setNotes] = useState<NoteData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!userId) return
+    setLoading(true)
+    const unsub = subscribeNotes(userId, (n) => {
+      setNotes(n)
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [userId])
+
+  const filtered = useMemo(() => {
+    let result = notes
+    if (filters?.archived !== undefined) {
+      result = result.filter((n) => (filters.archived ? n.archived : !n.archived))
+    }
+    if (filters?.folderId) {
+      result = result.filter((n) => n.folderId === filters.folderId)
+    } else if (filters?.folderId === undefined) {
+      result = result.filter((n) => !n.folderId)
+    }
+    if (filters?.search) {
+      const q = filters.search.toLowerCase()
+      result = result.filter((n) =>
+        (n.title || "").toLowerCase().includes(q) ||
+        JSON.stringify(n.content || {}).toLowerCase().includes(q)
+      )
+    }
+    return result
+  }, [notes, filters?.archived, filters?.folderId, filters?.search])
+
+  return { notes: filtered, loading }
 }

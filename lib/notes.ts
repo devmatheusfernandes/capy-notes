@@ -34,6 +34,14 @@ export function subscribeNote(userId: string, noteId: string, onData: (note: Not
   })
 }
 
+export function subscribeNotes(userId: string, onData: (notes: NoteData[]) => void) {
+  const ref = collection(db, "users", userId, "notes")
+  return onSnapshot(ref, (snap) => {
+    const notes = snap.docs.map((d) => d.data() as NoteData)
+    onData(notes)
+  })
+}
+
 export async function updateNote(userId: string, noteId: string, updates: Partial<NoteData>) {
   const ref = doc(db, "users", userId, "notes", noteId)
   const now = new Date().toISOString()
