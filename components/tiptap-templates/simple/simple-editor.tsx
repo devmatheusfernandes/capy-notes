@@ -245,9 +245,16 @@ export function SimpleEditor({
     onUpdate: handleUpdate,
   })
 
+const isFirstRender = useRef(true)
+  
   useEffect(() => {
     if (!editor || content === undefined) return
-    editor.commands.setContent(content as Content)
+    
+    // Apenas seta o conteúdo no primeiro render ou quando vem de fora
+    if (isFirstRender.current) {
+      editor.commands.setContent(content as Content)
+      isFirstRender.current = false
+    }
   }, [editor, content])
 
   const rect = useCursorVisibility({
