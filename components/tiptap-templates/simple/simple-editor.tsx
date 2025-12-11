@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { EditorContent, EditorContext, useEditor, type Content } from "@tiptap/react"
+import { EditorContent, EditorContext, useEditor, type Content, type Editor } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
+import { TextSelection } from "@tiptap/pm/state"
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
@@ -75,6 +76,11 @@ import { handleImageUpload, MAX_FILE_SIZE, deleteImageFromStorage } from "@/lib/
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 
 import { useThrottledCallback } from "@/hooks/use-throttled-callback"
+import { CommentMark } from "@/components/tiptap-extension/comment-mark"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { subscribeComments, createComment, updateComment, deleteComment } from "@/lib/comments"
+import type { CommentData } from "@/types"
+import { Pencil, Trash2, MessageSquarePlus } from "lucide-react"
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -187,9 +193,13 @@ const MobileToolbarContent = ({
 export function SimpleEditor({
   content,
   onChange,
+  userId,
+  noteId,
 }: {
   content?: Content
   onChange?: (json: JSONContent) => void
+  userId?: string
+  noteId?: string
 }) {
   const isMobile = useIsBreakpoint()
   const { height } = useWindowSize()
@@ -198,16 +208,25 @@ export function SimpleEditor({
   )
   const toolbarRef = useRef<HTMLDivElement>(null)
   const prevImageUrlsRef = useRef<Set<string>>(new Set())
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false)
+  const [newCommentText, setNewCommentText] = useState("")
+  const pendingCommentIdRef = useRef<string | null>(null)
+  const [hasPendingComment, setHasPendingComment] = useState(false)
+  const [comments, setComments] = useState<CommentData[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const editorRef = useRef<Editor | null>(null)
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
 
   const getImageUrls = (json: JSONContent): string[] => {
     const urls: string[] = []
-    const walk = (node: any) => {
-      if (!node) return
-      if (node.type === "image" && typeof node?.attrs?.src === "string") {
-        urls.push(node.attrs.src as string)
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") return
+      const n = node as { type?: string; attrs?: { src?: unknown }; content?: unknown[] }
+      if (n.type === "image" && typeof n.attrs?.src === "string") {
+        urls.push(n.attrs.src)
       }
-      if (Array.isArray(node.content)) {
-        node.content.forEach(walk)
+      if (Array.isArray(n.content)) {
+        n.content.forEach(walk)
       }
     }
     walk(json)
@@ -215,8 +234,9 @@ export function SimpleEditor({
   }
 
   const handleUpdate = useThrottledCallback(() => {
-    if (!editor) return
-    const json = editor.getJSON()
+    const ed = editorRef.current
+    if (!ed) return
+    const json = ed.getJSON()
     onChange?.(json)
     const current = new Set(getImageUrls(json))
     const prev = prevImageUrlsRef.current
@@ -238,6 +258,22 @@ export function SimpleEditor({
         "aria-label": "Main content area, start typing to enter text.",
         class: "simple-editor",
       },
+      handleClickOn: (_view, _pos, node) => {
+        try {
+          const clickedNode = node as unknown as { isText?: boolean; marks?: Array<{ type: { name: string }; attrs: Record<string, unknown> }> }
+          if (clickedNode?.isText && Array.isArray(clickedNode.marks)) {
+            const m = clickedNode.marks.find((mk) => mk.type.name === "comment")
+            const id = (m?.attrs?.id as string | undefined) || null
+            if (id) {
+              setActiveCommentId(id)
+              setIsCommentsOpen(true)
+            }
+          }
+        } catch {
+          /* noop */
+        }
+        return false
+      },
     },
     extensions: [
       StarterKit.configure({
@@ -257,6 +293,7 @@ export function SimpleEditor({
       Superscript,
       Subscript,
       Selection,
+      CommentMark,
       ImageUploadNode.configure({
         accept: "image/*",
         maxSize: MAX_FILE_SIZE,
@@ -268,6 +305,10 @@ export function SimpleEditor({
     content,
     onUpdate: handleUpdate,
   })
+
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
 
 const isFirstRender = useRef(true)
   
@@ -283,16 +324,88 @@ const isFirstRender = useRef(true)
     }
   }, [editor, content])
 
+  useEffect(() => {
+    if (!userId || !noteId) return
+    const unsub = subscribeComments(userId, noteId, (list) => setComments(list))
+    return () => unsub()
+  }, [userId, noteId])
+
+  const selectionHasComment = () => {
+    if (!editor) return false
+    const { state } = editor
+    const { from, to } = state.selection
+    let found = false
+    state.doc.nodesBetween(from, to, (node) => {
+      if (node.isText && node.marks.some((m) => m.type.name === "comment")) {
+        found = true
+        return false
+      }
+      return true
+    })
+    return found
+  }
+
+  const selectionHasText = () => {
+    if (!editor) return false
+    const { selection } = editor.state
+    return !selection.empty
+  }
+
+  const applyCommentMark = (id: string) => {
+    if (!editor) return false
+    return editor.chain().focus().setMark("comment", { id }).run()
+  }
+
+  const selectCommentById = (id: string) => {
+    if (!editor) return
+    const { state, view } = editor
+    let from: number | null = null
+    let to: number | null = null
+    state.doc.descendants((node, pos) => {
+      if (!node.isText) return true
+      const has = node.marks.some((m) => m.type.name === "comment" && (m.attrs as Record<string, unknown>)["id"] === id)
+      if (has) {
+        from = pos
+        to = pos + node.nodeSize
+        return false
+      }
+      return true
+    })
+    if (from !== null && to !== null) {
+      const tr = state.tr.setSelection(TextSelection.create(state.doc, from, to)).scrollIntoView()
+      view.dispatch(tr)
+    }
+  }
+
+  const removeCommentMarks = (id: string) => {
+    if (!editor) return
+    const { state, view } = editor
+    const markType = state.schema.marks.comment
+    let tr = state.tr
+    state.doc.descendants((node, pos) => {
+      if (!node.isText) return true
+      const has = node.marks.some((m) => m.type === markType && (m.attrs as Record<string, unknown>)["id"] === id)
+      if (has) {
+        tr = tr.removeMark(pos, pos + node.nodeSize, markType)
+      }
+      return true
+    })
+    view.dispatch(tr)
+  }
+
   const rect = useCursorVisibility({
     editor,
-    overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
+    overlayHeight: 0,
   })
 
   useEffect(() => {
-    if (!isMobile && mobileView !== "main") {
-      setMobileView("main")
+    if (!activeCommentId) return
+    const el = document.getElementById(`comment-${activeCommentId}`)
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" })
     }
-  }, [isMobile, mobileView])
+  }, [activeCommentId])
+
 
   return (
     <div className="simple-editor-wrapper">
@@ -307,7 +420,7 @@ const isFirstRender = useRef(true)
               : {}),
           }}
         >
-          {mobileView === "main" ? (
+          {!isMobile || mobileView === "main" ? (
             <MainToolbarContent
               onHighlighterClick={() => setMobileView("highlighter")}
               onLinkClick={() => setMobileView("link")}
@@ -319,6 +432,29 @@ const isFirstRender = useRef(true)
               onBack={() => setMobileView("main")}
             />
           )}
+          <ToolbarSeparator />
+          <ToolbarGroup>
+            <Button
+              aria-label="Adicionar comentário"
+              onClick={async () => {
+                if (selectionHasText() && !selectionHasComment() && userId && noteId && editor) {
+                  const { state } = editor
+                  const { from, to } = state.selection
+                  const snippet = state.doc.textBetween(from, to, "\n")
+              const created = await createComment(userId, noteId, { text: "", snippet })
+              pendingCommentIdRef.current = created.id
+              setHasPendingComment(true)
+              setNewCommentText("")
+              applyCommentMark(created.id)
+              setActiveCommentId(created.id)
+            }
+            setIsCommentsOpen(true)
+          }}
+        >
+              <MessageSquarePlus className="tiptap-button-icon" />
+              Comentar
+            </Button>
+          </ToolbarGroup>
         </Toolbar>
 
         <EditorContent
@@ -326,6 +462,90 @@ const isFirstRender = useRef(true)
           role="presentation"
           className="simple-editor-content"
         />
+
+        <Sheet
+          open={isCommentsOpen}
+          onOpenChange={(open) => {
+            setIsCommentsOpen(open)
+            if (!open) {
+              setNewCommentText("")
+              pendingCommentIdRef.current = null
+              setHasPendingComment(false)
+            }
+          }}
+        >
+          <SheetContent side="right" className="max-w-md">
+            <SheetHeader>
+              <SheetTitle>Comentários</SheetTitle>
+            </SheetHeader>
+            {hasPendingComment && (
+              <div className="p-4">
+                <textarea
+                  className="w-full rounded-xs border p-2 text-sm"
+                  placeholder="Escreva um comentário…"
+                  value={newCommentText}
+                  onChange={async (e) => {
+                    const text = e.target.value
+                    setNewCommentText(text)
+                    if (!userId || !noteId) return
+                    if (hasPendingComment && pendingCommentIdRef.current) {
+                      await updateComment(userId, noteId, pendingCommentIdRef.current, { text })
+                    }
+                  }}
+                />
+              </div>
+            )}
+            <div className="p-4 flex flex-col gap-2">
+              {comments.map((c) => (
+                <div
+                  key={c.id}
+                  id={`comment-${c.id}`}
+                  className="group relative rounded-xs border p-3 text-sm cursor-pointer"
+                  onClick={() => {
+                    setActiveCommentId(c.id)
+                    selectCommentById(c.id)
+                  }}
+                  >
+                  <div className="text-muted-foreground text-xs mb-2">{c.snippet}</div>
+                  <div className="absolute top-2 right-2 hidden gap-1 group-hover:flex">
+                    <button
+                      className="rounded-xs bg-secondary px-2 py-1"
+                      onClick={(ev) => {
+                        ev.stopPropagation()
+                        setEditingId((prev) => (prev === c.id ? null : c.id))
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      className="rounded-xs bg-destructive px-2 py-1 text-white"
+                      onClick={async (ev) => {
+                        ev.stopPropagation()
+                        if (!userId || !noteId) return
+                        await deleteComment(userId, noteId, c.id)
+                        removeCommentMarks(c.id)
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                  {editingId === c.id ? (
+                    <textarea
+                      className="w-full rounded-xs border p-2"
+                      defaultValue={c.text}
+                      onChange={async (e) => {
+                        if (!userId || !noteId) return
+                        await updateComment(userId, noteId, c.id, { text: e.target.value })
+                      }}
+                    />
+                  ) : (
+                    <p className="m-0 whitespace-pre-wrap">{c.text || "(sem conteúdo)"}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
       </EditorContext.Provider>
     </div>
   )

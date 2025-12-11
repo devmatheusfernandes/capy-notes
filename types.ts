@@ -21,6 +21,14 @@ export interface NoteData {
   updatedAt: string
 }
 
+export interface CommentData {
+  id: string
+  text: string
+  snippet: string
+  createdAt: string
+  updatedAt?: string
+}
+
 export interface FolderData {
   id: string
   name: string
