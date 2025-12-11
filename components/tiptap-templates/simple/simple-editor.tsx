@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react"
+import { EditorContent, EditorContext, useEditor, type Content } from "@tiptap/react"
+import type { JSONContent } from "@tiptap/core"
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit"
@@ -73,7 +74,7 @@ import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 
-import content from "@/components/tiptap-templates/simple/data/content.json"
+import { useThrottledCallback } from "@/hooks/use-throttled-callback"
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -183,13 +184,25 @@ const MobileToolbarContent = ({
   </>
 )
 
-export function SimpleEditor() {
+export function SimpleEditor({
+  content,
+  onChange,
+}: {
+  content?: Content
+  onChange?: (json: JSONContent) => void
+}) {
   const isMobile = useIsBreakpoint()
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = useState<"main" | "highlighter" | "link">(
     "main"
   )
   const toolbarRef = useRef<HTMLDivElement>(null)
+
+  const handleUpdate = useThrottledCallback(() => {
+    if (!editor) return
+    const json = editor.getJSON()
+    onChange?.(json)
+  }, 400, [onChange])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -229,7 +242,13 @@ export function SimpleEditor() {
       }),
     ],
     content,
+    onUpdate: handleUpdate,
   })
+
+  useEffect(() => {
+    if (!editor || content === undefined) return
+    editor.commands.setContent(content as Content)
+  }, [editor, content])
 
   const rect = useCursorVisibility({
     editor,

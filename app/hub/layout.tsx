@@ -34,6 +34,7 @@ export default function HubLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const isNoteEditor = /^\/hub\/notes\/[^/]+$/.test(pathname || "")
   const initialOpen = useMemo(() => {
     const map: Record<string, boolean> = {}
     hubNav.forEach((i) => {
@@ -45,7 +46,8 @@ export default function HubLayout({
   return (
     <SidebarProvider>
       <div className="flex min-h-svh w-full">
-        <Sidebar variant="inset" collapsible="icon">
+        {!isNoteEditor && (
+          <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader>
             <SidebarInput placeholder="Pesquisar" />
           </SidebarHeader>
@@ -126,19 +128,24 @@ export default function HubLayout({
             </SidebarGroup>
           </SidebarContent>
         </Sidebar>
+        )}
 
-        <SidebarInset>
-          <header className="flex h-12 items-center gap-2 border-b px-2 md:px-4">
-            <SidebarTrigger />
-            <Link href="/" className="text-sm font-medium">
-              CapyNotes
-            </Link>
-            <div className="ml-auto">
-              <ModeToggle />
-            </div>
-          </header>
-          <div className="p-4">{children}</div>
-        </SidebarInset>
+        {isNoteEditor ? (
+          <div className="flex-1">{children}</div>
+        ) : (
+          <SidebarInset>
+            <header className="flex h-12 items-center gap-2 border-b px-2 md:px-4">
+              <SidebarTrigger />
+              <Link href="/" className="text-sm font-medium">
+                CapyNotes
+              </Link>
+              <div className="ml-auto">
+                <ModeToggle />
+              </div>
+            </header>
+            <div className="p-4">{children}</div>
+          </SidebarInset>
+        )}
       </div>
     </SidebarProvider>
   )
