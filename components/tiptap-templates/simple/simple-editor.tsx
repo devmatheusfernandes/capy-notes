@@ -81,6 +81,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { subscribeComments, createComment, updateComment, deleteComment } from "@/lib/comments"
 import type { CommentData } from "@/types"
 import { Pencil, Trash2, MessageSquarePlus } from "lucide-react"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -94,7 +95,7 @@ const MainToolbarContent = ({
   return (
     <>
       <Spacer />
-
+        <SidebarTrigger />
       <ToolbarGroup>
         <UndoRedoButton action="undo" />
         <UndoRedoButton action="redo" />

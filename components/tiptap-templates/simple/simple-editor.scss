@@ -33,7 +33,7 @@ body,
 }
 
 ::-webkit-scrollbar {
-  width: 0.25rem;
+  width: .25rem;
 }
 
 * {
@@ -58,10 +58,18 @@ body,
   width: 100vw;
   height: 100vh;
   overflow: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.simple-editor-wrapper::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .simple-editor-content {
-  max-width: 648px;
+  max-width: 740px;
   width: 100%;
   margin: 0 auto;
   height: 100%;
@@ -82,6 +90,6 @@ body,
 }
 
 .tiptap-comment {
-  background-color: rgba(250, 204, 21, 0.3);
+  background-color: var(--primary-transparent-20);
   border-bottom: 1px dashed currentColor;
 }
