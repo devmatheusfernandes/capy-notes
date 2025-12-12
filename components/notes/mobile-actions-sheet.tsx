@@ -24,6 +24,8 @@ export default function MobileActionsSheet({
   setSearch,
   onCreateNote,
   onCreateFolder,
+  selectedTagId,
+  setSelectedTagId,
 }: {
   archived: boolean
   setArchived: (v: boolean) => void
@@ -38,6 +40,8 @@ export default function MobileActionsSheet({
   setSearch: (v: string) => void
   onCreateNote: () => void
   onCreateFolder: (name: string) => void
+  selectedTagId?: string
+  setSelectedTagId: (id: string | undefined) => void
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -89,11 +93,23 @@ export default function MobileActionsSheet({
             <div>
               <div className="text-xs text-muted-foreground mb-2">Labels</div>
               <div className="space-y-1">
+                <Button
+                  variant={!selectedTagId ? "outline" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setSelectedTagId(undefined)}
+                >
+                  Todas
+                </Button>
                 {tags.map((t) => (
-                  <div key={t.id} className="flex items-center gap-2 text-sm">
+                  <Button
+                    key={t.id}
+                    variant={selectedTagId === t.id ? "outline" : "ghost"}
+                    className="w-full justify-start"
+                    onClick={() => setSelectedTagId(t.id)}
+                  >
                     <span className="inline-block size-2 rounded-full" style={{ backgroundColor: t.color || "#8884d8" }} />
-                    <span>{t.name}</span>
-                  </div>
+                    <span className="ml-2">{t.name}</span>
+                  </Button>
                 ))}
               </div>
             </div>

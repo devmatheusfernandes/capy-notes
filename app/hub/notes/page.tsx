@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,7 @@ export default function NotesPage() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [search, setSearch] = useState("");
   const [archived, setArchived] = useState(false);
+  const [selectedTagId, setSelectedTagId] = useState<string | undefined>(undefined);
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(
     undefined
   );
@@ -81,15 +82,20 @@ export default function NotesPage() {
   } | null>(null);
 
   // Ordenação
+  const filteredNotes = useMemo(() => {
+    if (!selectedTagId) return notes;
+    return notes.filter((n) => (n.tagIds || []).includes(selectedTagId));
+  }, [notes, selectedTagId]);
+
   const orderedNotes = useMemo(() => {
-    return [...notes].sort((a, b) => {
+    return [...filteredNotes].sort((a, b) => {
       const p = Number(!!b.pinned) - Number(!!a.pinned);
       if (p !== 0) return p;
       const bu = new Date(b.updatedAt || b.createdAt).getTime();
       const au = new Date(a.updatedAt || a.createdAt).getTime();
       return bu - au;
     });
-  }, [notes]);
+  }, [filteredNotes]);
 
   const visibleFolders = useMemo(() => {
     let result = folders;
@@ -104,6 +110,21 @@ export default function NotesPage() {
   }, [folders, archived, currentFolderId]);
 
   const hasSelection = selectedNotes.length + selectedFolders.length > 0;
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("notes_view");
+      if (stored === "grid" || stored === "list") {
+        setView(stored);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("notes_view", view);
+    } catch {}
+  }, [view]);
 
   // Handler para marcar item do checklist sem abrir a nota
   const handleCheckItem = async (noteId: string, itemIndex: number) => {
@@ -261,6 +282,8 @@ export default function NotesPage() {
               setSearch={setSearch}
               onCreateNote={handleCreateNote}
               onCreateFolder={(n) => handleCreateFolder(n)}
+              selectedTagId={selectedTagId}
+              setSelectedTagId={setSelectedTagId}
             />
           </div>
         </div>
@@ -317,17 +340,26 @@ export default function NotesPage() {
             />
           </div>
           <div className="space-y-1">
+            <Button
+              variant={!selectedTagId ? "secondary" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setSelectedTagId(undefined)}
+            >
+              Todas
+            </Button>
             {tags.map((t) => (
-              <div
+              <Button
                 key={t.id}
-                className="flex items-center gap-2 text-sm px-2 py-1.5 hover:bg-muted rounded-md cursor-pointer transition-colors"
+                variant={selectedTagId === t.id ? "secondary" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => setSelectedTagId(t.id)}
               >
                 <span
-                  className="inline-block size-2 rounded-full ring-1 ring-white/20"
+                  className="inline-block size-2 rounded-full ring-1 ring-white/20 mr-2"
                   style={{ backgroundColor: t.color || "#8884d8" }}
                 />
                 <span className="truncate">{t.name}</span>
-              </div>
+              </Button>
             ))}
           </div>
         </div>
@@ -611,10 +643,10 @@ export default function NotesPage() {
                 tags={tags}
                 selected={selectedNotes.includes(n.id)}
                 onToggleSelect={toggleNoteSelected}
-                onClick={() => router.push(`/hub/notes/${n.id}`)}
-                onCheck={handleCheckItem}
-                hasSelectionMode={hasSelection}
-                actionsMenu={
+              onClick={() => router.push(`/hub/notes/${n.id}`)}
+              onCheck={handleCheckItem}
+              hasSelectionMode={hasSelection}
+              actionsMenu={
                   <>
                     <DropdownMenuItem onSelect={() => toggleNoteSelected(n.id)}>
                       {selectedNotes.includes(n.id)
