@@ -94,7 +94,14 @@ import {
   deleteComment,
 } from "@/lib/comments";
 import type { CommentData } from "@/types";
-import { MessageSquarePlus, BookOpen } from "lucide-react";
+import { MessageSquarePlus, BookOpen, Tags, X, ChevronsUpDown } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandEmpty } from "@/components/ui/command";
+import { useTags } from "@/hooks/notes";
+import { updateNote } from "@/lib/notes";
 import CommentsSidebar from "@/components/tiptap-templates/simple/comments-sidebar";
 import BibleSidebar from "@/components/tiptap-templates/simple/bible-sidebar";
 import { BibleReferenceExtension } from "@/components/tiptap-extension/bible-reference-extension";
@@ -221,11 +228,15 @@ export function SimpleEditor({
   onChange,
   userId,
   noteId,
+  title,
+  tagIds,
 }: {
   content?: Content;
   onChange?: (json: JSONContent) => void;
   userId?: string;
   noteId?: string;
+  title?: string;
+  tagIds?: string[];
 }) {
   const isMobile = useIsBreakpoint();
   const { height } = useWindowSize();
@@ -244,6 +255,11 @@ export function SimpleEditor({
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [isBibleOpen, setIsBibleOpen] = useState(false);
   const [selectedBibleText, setSelectedBibleText] = useState("");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [isTagComboboxOpen, setIsTagComboboxOpen] = useState(false);
+  const { tags } = useTags();
 
   const getImageUrls = (json: JSONContent): string[] => {
     const urls: string[] = [];
@@ -380,6 +396,11 @@ export function SimpleEditor({
   useEffect(() => {
     editorRef.current = editor;
   }, [editor]);
+
+  useEffect(() => {
+    setTitleInput(title ?? "");
+    setSelectedTagIds(tagIds ?? []);
+  }, [title, tagIds]);
 
   const isFirstRender = useRef(true);
 
@@ -586,6 +607,9 @@ export function SimpleEditor({
             >
               <BookOpen className="tiptap-button-icon" />
             </Button>
+            <Button aria-label="Editar título e tags" onClick={() => setIsSettingsOpen(true)}>
+              <Tags className="tiptap-button-icon" />
+            </Button>
           </ToolbarGroup>
         </Toolbar>
 
@@ -603,6 +627,81 @@ export function SimpleEditor({
         editor={editor}
         selectedText={selectedBibleText}
       />
+      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Configurações da Nota</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                placeholder="Título da nota"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {selectedTagIds.map((tid) => {
+                  const t = tags.find((x) => x.id === tid);
+                  return (
+                    <Badge key={tid} variant="secondary" className="pl-2 pr-1 py-1">
+                      {t?.name ?? tid}
+                      <button onClick={() => setSelectedTagIds((prev) => prev.filter((x) => x !== tid))} className="ml-1 rounded-full p-0.5">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+              <Popover open={isTagComboboxOpen} onOpenChange={setIsTagComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button role="combobox" aria-expanded={isTagComboboxOpen} className="w-full justify-between" data-style="outline">
+                    Selecionar tags
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar tag" />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma tag encontrada</CommandEmpty>
+                      <CommandGroup heading="Tags">
+                        {tags.map((t) => (
+                          <CommandItem
+                            key={t.id}
+                            value={t.name}
+                            onSelect={() => {
+                              setSelectedTagIds((prev) => (prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]));
+                              setIsTagComboboxOpen(false);
+                            }}
+                          >
+                            {t.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button data-style="ghost">Cancelar</Button>
+            </SheetClose>
+            <Button
+              onClick={async () => {
+                if (!userId || !noteId) return;
+                await updateNote(userId, noteId, { title: titleInput.trim(), tagIds: selectedTagIds });
+                setIsSettingsOpen(false);
+              }}
+            >
+              Salvar
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
       <CommentsSidebar
         open={isCommentsOpen}
         onOpenChange={(open) => {
