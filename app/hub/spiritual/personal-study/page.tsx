@@ -1,7 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { BookOpen, Database, ArrowRight } from "lucide-react" // Ícones para ilustrar
+import Capybaraship from "../../../../public/images/capy-images/morning-capybaraship.png"
+import Bacapybara from "../../../../public/images/capy-images/bacapybara.png"
 
 // 1. Definimos os dados fora do componente para fácil manutenção
 const resources = [
@@ -9,7 +12,7 @@ const resources = [
     title: "Adoração Matinal",
     description: "Leia ou importe textos e conteúdos diários para sua meditação.",
     href: "/hub/spiritual/personal-study/morning-worship",
-    image: "https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg",
+    image: Capybaraship,
     icon: BookOpen,
     color: "bg-blue-500/10 text-blue-600", // Cor sutil para o ícone
   },
@@ -17,7 +20,7 @@ const resources = [
     title: "Backup do Aplicativo",
     description: "Gerencie, visualize ou restaure os backups da sua biblioteca pessoal.",
     href: "/hub/spiritual/personal-study/library-backup",
-    image: "https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg", // Sugestão: Alterar para uma imagem diferente se possível
+    image: Bacapybara,
     icon: Database,
     color: "bg-emerald-500/10 text-emerald-600",
   },
@@ -29,10 +32,10 @@ export default function NotesPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col gap-2 border-b pb-6">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Estudos Pessoais
+          Estudo Pessoal
         </h1>
         <p className="text-muted-foreground text-lg">
-          Gerencie seus recursos espirituais e materiais de estudo.
+          Recursos espirituais e materiais de estudo.
         </p>
       </div>
 
@@ -49,11 +52,13 @@ export default function NotesPage() {
               {/* Área da Imagem */}
               <div className="relative w-full h-40 bg-muted overflow-hidden">
                 <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10" />
-                <img
+                <Image
                   src={item.image}
                   alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  priority={false}
                 />
                 
                 {/* Badge/Ícone Flutuante sobre a imagem */}
