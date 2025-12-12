@@ -3,9 +3,12 @@
 import Link from "next/link"
 import { ModeToggle } from "@/components/ui/mode-toggle"
 import { hubNav } from "./nav-items"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { Button } from "@/components/ui/button"
+import { Search } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import {
   SidebarMenuSub,
   SidebarMenuSubItem,
@@ -34,7 +37,13 @@ export default function HubLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const isNoteEditor = /^\/hub\/notes\/[^/]+$/.test(pathname || "")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const isNoteEditor = /^\/hub\/notes\/[^\/]+$/.test(pathname || "")
+  const isBible = pathname?.startsWith("/hub/spiritual/bible")
+  const bookParam = searchParams?.get("book") || ""
+  const chapterParam = searchParams?.get("chapter") || ""
+  const bibleView = chapterParam ? "reader" : bookParam ? "chapters" : "books"
   const initialOpen = useMemo(() => {
     const map: Record<string, boolean> = {}
     hubNav.forEach((i) => {
@@ -45,7 +54,7 @@ export default function HubLayout({
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen)
   return (
     <SidebarProvider>
-      <div className="flex min-h-svh w-full">
+      <div className="flex no-scrollbar w-full">
         {!isNoteEditor && (
           <Sidebar variant="inset" collapsible="icon">
           <SidebarHeader>
@@ -133,17 +142,53 @@ export default function HubLayout({
         {isNoteEditor ? (
           <div className="flex-1">{children}</div>
         ) : (
-          <SidebarInset>
-            <header className="flex h-12 items-center gap-2 border-b px-2 md:px-4">
+          <SidebarInset className="max-h-[97vh] overflow-y-auto no-scrollbar">
+            <header className="flex h-14 items-center gap-2 border-b px-2 md:px-4 py-2 sticky top-0 bg-background z-10">
               <SidebarTrigger />
-              <Link href="/" className="text-sm font-medium">
-                CapyNotes
-              </Link>
-              <div className="ml-auto">
+              {isBible && bibleView !== "books" && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    const q = new URLSearchParams(searchParams?.toString())
+                    if (bibleView === "reader") {
+                      q.delete("chapter")
+                    } else {
+                      q.delete("book")
+                      q.delete("chapter")
+                    }
+                    const next = q.toString() ? `${pathname}?${q.toString()}` : pathname!
+                    router.push(next, { scroll: false })
+                  }}
+                  className="flex items-center text-foreground hover:bg-secondary-foreground px-2 py-1 rounded transition-colors text-sm sm:text-base font-medium"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-1" />
+                  {bibleView === "chapters" ? "Sumário" : bookParam}
+                </Button>
+              )}
+              <div className="ml-auto flex items-center gap-2">
+                {isBible && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      const q = new URLSearchParams(searchParams?.toString())
+                      if (q.get("search") === "1") {
+                        q.delete("search")
+                      } else {
+                        q.set("search", "1")
+                      }
+                      const next = q.toString() ? `${pathname}?${q.toString()}` : pathname!
+                      router.push(next, { scroll: false })
+                    }}
+                    className="text-foreground hover:bg-secondary-foreground"
+                  >
+                    <Search className="w-5 h-5" />
+                  </Button>
+                )}
                 <ModeToggle />
               </div>
             </header>
-            <div className="p-4">{children}</div>
+            <div className="p-2">{children}</div>
           </SidebarInset>
         )}
       </div>

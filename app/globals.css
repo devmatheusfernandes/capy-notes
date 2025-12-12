@@ -6,6 +6,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
