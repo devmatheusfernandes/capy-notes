@@ -1,49 +1,92 @@
 "use client"
 
 import Link from "next/link"
+import { BookOpen, Database, ArrowRight } from "lucide-react" // Ícones para ilustrar
+
+// 1. Definimos os dados fora do componente para fácil manutenção
+const resources = [
+  {
+    title: "Adoração Matinal",
+    description: "Leia ou importe textos e conteúdos diários para sua meditação.",
+    href: "/hub/spiritual/personal-study/morning-worship",
+    image: "https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg",
+    icon: BookOpen,
+    color: "bg-blue-500/10 text-blue-600", // Cor sutil para o ícone
+  },
+  {
+    title: "Backup do Aplicativo",
+    description: "Gerencie, visualize ou restaure os backups da sua biblioteca pessoal.",
+    href: "/hub/spiritual/personal-study/library-backup",
+    image: "https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg", // Sugestão: Alterar para uma imagem diferente se possível
+    icon: Database,
+    color: "bg-emerald-500/10 text-emerald-600",
+  },
+]
 
 export default function NotesPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-medium">Estudos Pessoais</h1>
-        <p className="text-sm text-muted-foreground">Selecione um recurso para estudar.</p>
+    <div className="max-w-7xl mx-auto p-6 space-y-8">
+      {/* Cabeçalho */}
+      <div className="flex flex-col gap-2 border-b pb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Estudos Pessoais
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Gerencie seus recursos espirituais e materiais de estudo.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link href="/hub/spiritual/personal-study/morning-worship" className="group block">
-          <div className="rounded-2xl border bg-card text-card-foreground overflow-hidden hover:shadow-md transition-all">
-            <div className="w-full h-36 bg-muted overflow-hidden">
-              <img
-                src="https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg"
-                alt="Adoração Matinal"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                loading="lazy"
-              />
-            </div>
-            <div className="p-4">
-              <div className="font-semibold">Adoração Matinal</div>
-              <div className="text-sm text-muted-foreground">Leia ou importe conteúdos diários.</div>
-            </div>
-          </div>
-        </Link>
+      {/* Grid de Recursos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {resources.map((item) => (
+          <Link 
+            key={item.href} 
+            href={item.href} 
+            className="group block h-full focus:outline-none"
+          >
+            <div className="h-full flex flex-col rounded-2xl border bg-card text-card-foreground overflow-hidden transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:-translate-y-1">
+              
+              {/* Área da Imagem */}
+              <div className="relative w-full h-40 bg-muted overflow-hidden">
+                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors z-10" />
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
+                />
+                
+                {/* Badge/Ícone Flutuante sobre a imagem */}
+                <div className={`absolute top-3 right-3 p-2 rounded-lg backdrop-blur-md bg-white/90 shadow-sm ${item.color} z-20`}>
+                  <item.icon size={20} />
+                </div>
+              </div>
 
-          <Link href="/hub/spiritual/personal-study/library-backup" className="group block">
-          <div className="rounded-2xl border bg-card text-card-foreground overflow-hidden hover:shadow-md transition-all">
-            <div className="w-full h-36 bg-muted overflow-hidden">
-              <img
-                src="https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg"
-                alt="Backup do Aplicativo"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                loading="lazy"
-              />
+              {/* Conteúdo do Card */}
+              <div className="flex flex-col flex-grow p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-lg tracking-tight group-hover:text-primary transition-colors">
+                    {item.title}
+                  </h3>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                </div>
+                
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {item.description}
+                </p>
+              </div>
             </div>
-            <div className="p-4">
-              <div className="font-semibold">Backup do Aplicativo</div>
-              <div className="text-sm text-muted-foreground">Leia ou importe backups do seu aplicativo.</div>
+          </Link>
+        ))}
+        
+        {/* Card de "Novo Recurso" (Opcional - Placeholder para expansão futura) */}
+        <button className="h-full min-h-[280px] rounded-2xl border-2 border-dashed border-muted-foreground/20 hover:border-muted-foreground/40 hover:bg-muted/5 transition-all flex flex-col items-center justify-center text-muted-foreground gap-3 group">
+            <div className="p-3 rounded-full bg-muted group-hover:bg-muted/80 transition-colors">
+                <span className="text-2xl font-light">+</span>
             </div>
-          </div>
-        </Link>
+            <span className="text-sm font-medium">Adicionar Recurso</span>
+        </button>
+
       </div>
     </div>
   )
