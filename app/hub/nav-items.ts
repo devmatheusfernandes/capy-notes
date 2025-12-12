@@ -18,6 +18,7 @@ export const hubNav: HubNavItem[] = [
     children: [
       { title: "Bíblia", href: "/hub/spiritual/bible", icon: BookOpen },
       { title: "Estudo pessoal", href: "/hub/spiritual/study", icon: NotebookPen },
+      { title: "Preferências", href: "/hub/spiritual/preferencias", icon: Settings },
     ],
   },
   { title: "Tarefas", href: "/hub/tasks", icon: Clock },
