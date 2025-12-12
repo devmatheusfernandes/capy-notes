@@ -29,7 +29,7 @@ export interface ListDropdownMenuProps extends Omit<ButtonProps, "type"> {
   /**
    * The Tiptap editor instance.
    */
-  editor?: Editor
+  editor?: Editor | null
   /**
    * The list types to display in the dropdown.
    */

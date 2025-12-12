@@ -97,10 +97,12 @@ import { MessageSquarePlus } from "lucide-react";
 import CommentsSidebar from "@/components/tiptap-templates/simple/comments-sidebar";
 
 const MainToolbarContent = ({
+  editor,
   onHighlighterClick,
   onLinkClick,
   isMobile,
 }: {
+  editor: Editor | null;
   onHighlighterClick: () => void;
   onLinkClick: () => void;
   isMobile: boolean;
@@ -109,58 +111,59 @@ const MainToolbarContent = ({
     <>
       <Spacer />
       <ToolbarGroup>
-        <UndoRedoButton action="undo" />
-        <UndoRedoButton action="redo" />
+        <UndoRedoButton editor={editor} action="undo" />
+        <UndoRedoButton editor={editor} action="redo" />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <HeadingDropdownMenu levels={[1, 2, 3, 4]} portal={isMobile} />
+        <HeadingDropdownMenu editor={editor} levels={[1, 2, 3, 4]} portal={isMobile} />
         <ListDropdownMenu
+          editor={editor}
           types={["bulletList", "orderedList", "taskList"]}
           portal={isMobile}
         />
-        <BlockquoteButton />
-        <CodeBlockButton />
+        <BlockquoteButton editor={editor} />
+        <CodeBlockButton editor={editor} />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <MarkButton type="bold" />
-        <MarkButton type="italic" />
-        <MarkButton type="strike" />
-        <MarkButton type="code" />
-        <MarkButton type="underline" />
+        <MarkButton editor={editor} type="bold" />
+        <MarkButton editor={editor} type="italic" />
+        <MarkButton editor={editor} type="strike" />
+        <MarkButton editor={editor} type="code" />
+        <MarkButton editor={editor} type="underline" />
         {!isMobile ? (
-          <ColorHighlightPopover />
+          <ColorHighlightPopover editor={editor} />
         ) : (
           <ColorHighlightPopoverButton onClick={onHighlighterClick} />
         )}
-        {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+        {!isMobile ? <LinkPopover editor={editor} /> : <LinkButton onClick={onLinkClick} />}
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <MarkButton type="superscript" />
-        <MarkButton type="subscript" />
+        <MarkButton editor={editor} type="superscript" />
+        <MarkButton editor={editor} type="subscript" />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <TextAlignButton align="left" />
-        <TextAlignButton align="center" />
-        <TextAlignButton align="right" />
-        <TextAlignButton align="justify" />
+        <TextAlignButton editor={editor} align="left" />
+        <TextAlignButton editor={editor} align="center" />
+        <TextAlignButton editor={editor} align="right" />
+        <TextAlignButton editor={editor} align="justify" />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ImageUploadButton text="Add" />
+        <ImageUploadButton editor={editor} text="Add" />
       </ToolbarGroup>
 
       <Spacer />
@@ -175,9 +178,11 @@ const MainToolbarContent = ({
 };
 
 const MobileToolbarContent = ({
+  editor,
   type,
   onBack,
 }: {
+  editor: Editor | null;
   type: "highlighter" | "link";
   onBack: () => void;
 }) => (
@@ -196,9 +201,9 @@ const MobileToolbarContent = ({
     <ToolbarSeparator />
 
     {type === "highlighter" ? (
-      <ColorHighlightPopoverContent />
+      <ColorHighlightPopoverContent editor={editor} />
     ) : (
-      <LinkContent />
+      <LinkContent editor={editor} />
     )}
   </>
 );
@@ -488,7 +493,6 @@ export function SimpleEditor({
         }}
       >
         <Toolbar
-          variant="fixed"
           ref={toolbarRef}
           style={{
             ...(isMobile
@@ -500,12 +504,14 @@ export function SimpleEditor({
         >
           {!isMobile || mobileView === "main" ? (
             <MainToolbarContent
+              editor={editor}
               onHighlighterClick={() => setMobileView("highlighter")}
               onLinkClick={() => setMobileView("link")}
               isMobile={isMobile}
             />
           ) : (
             <MobileToolbarContent
+              editor={editor}
               type={mobileView === "highlighter" ? "highlighter" : "link"}
               onBack={() => setMobileView("main")}
             />
