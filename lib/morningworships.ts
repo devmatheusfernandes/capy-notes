@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc } from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, deleteField } from "firebase/firestore"
 
 const API_URL = "https://b.jw-cdn.org/apis/mediator/v1/categories/T/VODPgmEvtMorningWorship?detailed=1&clientType=www"
 
@@ -157,5 +157,11 @@ export async function setMorningWorshipNoteLink(userId: string, id: string, note
   const ref = doc(db, "users", userId, "morningworships", id)
   const now = new Date().toISOString()
   await setDoc(ref, { importedAsNote: true, noteId, updatedAt: now }, { merge: true })
+}
+
+export async function clearMorningWorshipNoteLink(userId: string, id: string) {
+  const ref = doc(db, "users", userId, "morningworships", id)
+  const now = new Date().toISOString()
+  await setDoc(ref, { importedAsNote: false, noteId: deleteField(), updatedAt: now }, { merge: true })
 }
 

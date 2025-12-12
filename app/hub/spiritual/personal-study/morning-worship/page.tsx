@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2, LayoutGrid, List, Search, Play, FileText, Check, X } from "lucide-react"
 import { useCurrentUserId } from "@/hooks/notes"
-import { listMorningWorshipMedia, subscribeMorningWorships, formatVttToText, setMorningWorshipNoteLink, type MorningWorshipData } from "@/lib/morningworships"
-import { createNote } from "@/lib/notes"
+import { listMorningWorshipMedia, subscribeMorningWorships, formatVttToText, setMorningWorshipNoteLink, clearMorningWorshipNoteLink, type MorningWorshipData } from "@/lib/morningworships"
+import { createNote, getNote } from "@/lib/notes"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils"
 type ApiItem = { id: string; title: string; coverImage?: string; subtitlesUrl?: string; videoUrl?: string }
 
 export default function MorningWorshipPage() {
+  const router = useRouter()
   const userId = useCurrentUserId()
   const [apiItems, setApiItems] = useState<ApiItem[]>([])
   const [savedItems, setSavedItems] = useState<MorningWorshipData[]>([])
@@ -97,6 +99,23 @@ export default function MorningWorshipPage() {
     const created = await createNote(userId, { title: item.title, content })
     await setMorningWorshipNoteLink(userId, item.id, created.id)
     toast.success("Nota criada com sucesso")
+  }
+
+  const handleOpenNote = async (item: ApiItem) => {
+    if (!userId) return
+    const mw = savedMap.get(item.id)
+    const noteId = mw?.noteId
+    if (noteId) {
+      const existing = await getNote(userId, noteId)
+      if (existing) {
+        router.push(`/hub/notes/${noteId}`)
+        return
+      }
+      await clearMorningWorshipNoteLink(userId, item.id)
+      toast.info("A nota vinculada não existe mais. Você pode importar novamente.")
+      return
+    }
+    return
   }
 
   const handlePlay = (item: ApiItem) => {
@@ -366,7 +385,7 @@ export default function MorningWorshipPage() {
                       variant={importedAsNote ? "secondary" : "default"}
                       size="sm"
                       className={cn("text-xs h-8", viewMode === "grid" && "w-full")}
-                      onClick={() => handleImportNote(item)}
+                      onClick={() => (importedAsNote ? handleOpenNote(item) : handleImportNote(item))}
                       disabled={!userId || (!item.subtitlesUrl && !mw)}
                     >
                       <FileText className="h-3 w-3 mr-1.5" /> 
