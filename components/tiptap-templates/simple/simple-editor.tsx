@@ -109,6 +109,11 @@ const MainToolbarContent = ({
 }) => {
   return (
     <>
+      
+      <Button aria-label="Go back" onClick={() => window.history.back()}>
+        <ArrowLeftIcon className="tiptap-button-icon" />
+      </Button>
+      
       <Spacer />
       <ToolbarGroup>
         <UndoRedoButton editor={editor} action="undo" />
