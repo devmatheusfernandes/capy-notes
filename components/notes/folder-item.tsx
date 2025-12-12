@@ -11,8 +11,8 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/component
 export interface FolderItemProps {
   id: string
   title: string
-  itemCount?: string | number // Renomeado de subtitle para ser mais semântico
-  icon?: React.ReactNode // Opcional, usa default se não passar
+  itemCount?: string | number 
+  icon?: React.ReactNode 
   selected: boolean
   view: "list" | "grid"
   onToggleSelect: (id: string) => void
@@ -52,13 +52,13 @@ export default function FolderItem({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              "relative group rounded-xl border p-4 transition-all cursor-pointer hover:bg-accent hover:text-accent-foreground transition-all duration-300 ease-in-out",
-              selected ? "border-primary bg-accent/50 ring-1 ring-primary/20" : "border-border/60 bg-card",
+              "relative group rounded-lg border p-4 cursor-pointer hover:bg-secondary-foreground/30 hover:text-accent-foreground",
+              selected ? "border-primary ring-1 ring-primary/20" : "border-border/60",
               // Grid: Compacto e centrado verticalmente se pouco conteúdo
               // List: Row padrão
               isGrid 
-                ? "flex flex-row gap-3 h-auto min-h-[4rem] justify-center items-center" 
-                : "flex items-center gap-4 h-16"
+                ? "bg-secondary-foreground/20 flex flex-row gap-3 h-auto min-h-[4rem] justify-center items-center" 
+                : "bg-secondary-foreground/20 flex items-center gap-4 h-16"
             )}
             onClick={(e) => {
               if (hasSelectionMode) {
@@ -73,7 +73,7 @@ export default function FolderItem({
             {/* Ícone da Pasta */}
             <div className={cn(
               "shrink-0 flex items-center justify-center rounded-lg transition-colors",
-              isGrid ? "bg-blue-100/50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 p-2 w-fit" : "text-blue-600 dark:text-blue-400"
+              isGrid ? "bg-primary/20 text-primary p-2 w-fit" : "text-primary"
             )}>
               {icon || <FolderIcon size={isGrid ? 24 : 20} />}
             </div>
@@ -115,7 +115,7 @@ export default function FolderItem({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 rounded-full bg-background/80 backdrop-blur shadow-sm hover:bg-background" 
+                    className="h-8 w-8 rounded-full bg-background/20 ease-in-out duration-200 transition-all" 
                     data-card-control="true"
                   >
                     <MoreVertical className="h-4 w-4" />

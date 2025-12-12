@@ -1,14 +1,26 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
-import TagEditorDialog from "@/components/notes/tag-editor-dialog"
-import CreateFolderDialog from "@/components/notes/create-folder-dialog"
-import type { NoteData, TagData } from "@/types"
-import { Archive, FileText, LayoutGrid, List, Menu, Plus, Trash2 } from "lucide-react"
-import Link from "next/link"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import TagEditorDialog from "@/components/notes/tag-editor-dialog";
+import type { NoteData, TagData } from "@/types";
+import {
+  Archive,
+  FileText,
+  LayoutGrid,
+  List,
+  Menu,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
 
 export default function MobileActionsSheet({
   archived,
@@ -22,29 +34,27 @@ export default function MobileActionsSheet({
   onDeleteTag,
   search,
   setSearch,
-  onCreateNote,
-  onCreateFolder,
   selectedTagId,
   setSelectedTagId,
 }: {
-  archived: boolean
-  setArchived: (v: boolean) => void
-  view: "grid" | "list"
-  setView: (v: "grid" | "list") => void
-  tags: TagData[]
-  allNotes: NoteData[]
-  onAddTag: (name: string, color?: string) => void
-  onUpdateTag: (id: string, updates: Partial<TagData>) => void
-  onDeleteTag: (id: string) => void
-  search: string
-  setSearch: (v: string) => void
-  onCreateNote: () => void
-  onCreateFolder: (name: string) => void
-  selectedTagId?: string
-  setSelectedTagId: (id: string | undefined) => void
+  archived: boolean;
+  setArchived: (v: boolean) => void;
+  view: "grid" | "list";
+  setView: (v: "grid" | "list") => void;
+  tags: TagData[];
+  allNotes: NoteData[];
+  onAddTag: (name: string, color?: string) => void;
+  onUpdateTag: (id: string, updates: Partial<TagData>) => void;
+  onDeleteTag: (id: string) => void;
+  search: string;
+  setSearch: (v: string) => void;
+  onCreateNote: () => void;
+  onCreateFolder: (name: string) => void;
+  selectedTagId?: string;
+  setSelectedTagId: (id: string | undefined) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-row items-center gap-2 w-full">
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon">
@@ -56,11 +66,19 @@ export default function MobileActionsSheet({
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
           <div className="p-4 space-y-2">
-            <Button variant={archived ? "ghost" : "outline"} className="w-full justify-start" onClick={() => setArchived(false)}>
+            <Button
+              variant={archived ? "ghost" : "outline"}
+              className="w-full justify-start"
+              onClick={() => setArchived(false)}
+            >
               <FileText className="mr-2" />
               Notes
             </Button>
-            <Button variant={archived ? "outline" : "ghost"} className="w-full justify-start" onClick={() => setArchived(true)}>
+            <Button
+              variant={archived ? "outline" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setArchived(true)}
+            >
               <Archive className="mr-2" />
               Archive
             </Button>
@@ -72,34 +90,45 @@ export default function MobileActionsSheet({
             </Button>
             <Separator className="my-3" />
             <div className="text-xs font-medium mb-2">Visualização</div>
-            <Button variant={view === "grid" ? "outline" : "ghost"} className="w-full justify-start" onClick={() => setView("grid")}>
+            <Button
+              variant={view === "grid" ? "outline" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setView("grid")}
+            >
               <LayoutGrid className="mr-2" />
               Grade
             </Button>
-            <Button variant={view === "list" ? "outline" : "ghost"} className="w-full justify-start" onClick={() => setView("list")}>
+            <Button
+              variant={view === "list" ? "outline" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => setView("list")}
+            >
               <List className="mr-2" />
               Lista
             </Button>
             <Separator className="my-3" />
-            <TagEditorDialog
-              tags={tags}
-              allNotes={allNotes}
-              onAdd={onAddTag}
-              onUpdate={onUpdateTag}
-              onDelete={onDeleteTag}
-              triggerFullWidth
-            />
+
             <Separator className="my-3" />
             <div>
               <div className="text-xs text-muted-foreground mb-2">Labels</div>
               <div className="space-y-1">
-                <Button
-                  variant={!selectedTagId ? "outline" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setSelectedTagId(undefined)}
-                >
-                  Todas
-                </Button>
+                <div className="flex flex-row items-center gap-2">
+                  <Button
+                    variant={!selectedTagId ? "outline" : "ghost"}
+                    className="flex-1 w-full justify-start"
+                    onClick={() => setSelectedTagId(undefined)}
+                  >
+                    Todas
+                  </Button>
+                  <TagEditorDialog
+                    tags={tags}
+                    allNotes={allNotes}
+                    onAdd={onAddTag}
+                    onUpdate={onUpdateTag}
+                    onDelete={onDeleteTag}
+                    triggerFullWidth={false}
+                  />
+                </div>
                 {tags.map((t) => (
                   <Button
                     key={t.id}
@@ -107,7 +136,10 @@ export default function MobileActionsSheet({
                     className="w-full justify-start"
                     onClick={() => setSelectedTagId(t.id)}
                   >
-                    <span className="inline-block size-2 rounded-full" style={{ backgroundColor: t.color || "#8884d8" }} />
+                    <span
+                      className="inline-block size-2 rounded-full"
+                      style={{ backgroundColor: t.color || "#8884d8" }}
+                    />
                     <span className="ml-2">{t.name}</span>
                   </Button>
                 ))}
@@ -116,11 +148,12 @@ export default function MobileActionsSheet({
           </div>
         </SheetContent>
       </Sheet>
-      <Input placeholder="Search notes" value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
-      <Button onClick={onCreateNote} size="icon" aria-label="Add Note">
-        <Plus />
-      </Button>
-      <CreateFolderDialog onCreate={onCreateFolder} iconOnly />
+      <Input
+        placeholder="Buscar notas"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="min-w-ful flex-1"
+      />
     </div>
-  )
+  );
 }

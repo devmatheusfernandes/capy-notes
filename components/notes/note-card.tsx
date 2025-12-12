@@ -70,9 +70,9 @@ export function NoteCard({
               onClick();
             }}
             className={cn(
-              "flex flex-col w-full rounded-2xl border bg-card text-card-foreground transition-all duration-300 ease-in-out overflow-hidden cursor-pointer",
-              "hover:-translate-y-1 transition-all duration-300 ease-in-out",
-              selected ? "ring-2 ring-primary border-primary bg-primary/5" : "border-border/60"
+              "flex flex-col w-full rounded-lg border hover:bg-secondary-foreground/30 hover:text-accent-foreground",
+              "bg-secondary-foreground/20 hover:bg-secondary-foreground/30",
+              selected ? "border-primary ring-1 ring-primary/20" : "border-border/60"
             )}
           >
             {/* 1. Imagem de Capa */}
@@ -188,7 +188,7 @@ export function NoteCard({
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="h-8 w-8 rounded-full bg-background/80 backdrop-blur shadow-sm hover:bg-background"
+                    className="h-8 w-8 rounded-full bg-background/20 ease-in-out duration-200 transition-all" 
                     data-card-control="true"
                   >
                     <MoreVertical className="h-3.5 w-3.5" />

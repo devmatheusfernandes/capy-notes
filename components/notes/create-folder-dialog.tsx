@@ -30,8 +30,8 @@ export default function CreateFolderDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size={iconOnly ? "icon" : "sm"} aria-label="Criar pasta">
-          <FolderPlus className={iconOnly ? "h-4 w-4" : "mr-2 h-4 w-4"} />
-          {iconOnly ? null : triggerText}
+          <FolderPlus className={iconOnly ? "h-4 w-4" : "h-4 w-4 sm:mr-2"} />
+          {iconOnly ? null : <span className="hidden sm:inline">{triggerText}</span>}
         </Button>
       </DialogTrigger>
       <DialogContent>

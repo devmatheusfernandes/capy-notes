@@ -185,9 +185,83 @@ function BibleContent() {
     else if (view === "chapters") setView("books");
   };
 
-  // Separação das escrituras (39 VT, 27 NT)
-  const hebrewScriptures = books.slice(0, 39);
-  const greekScriptures = books.slice(39);
+  const NT_BOOKS = [
+    "Mateus",
+    "Marcos",
+    "Lucas",
+    "João",
+    "Atos",
+    "Atos dos Apóstolos",
+    "Romanos",
+    "1 Coríntios",
+    "2 Coríntios",
+    "Gálatas",
+    "Efésios",
+    "Filipenses",
+    "Colossenses",
+    "1 Tessalonicenses",
+    "2 Tessalonicenses",
+    "1 Timóteo",
+    "2 Timóteo",
+    "Tito",
+    "Filemom",
+    "Hebreus",
+    "Tiago",
+    "1 Pedro",
+    "2 Pedro",
+    "1 João",
+    "2 João",
+    "3 João",
+    "Judas",
+    "Apocalipse",
+    "Revelação",
+  ];
+
+  const OT_BOOKS = [
+    "Gênesis",
+    "Êxodo",
+    "Levítico",
+    "Números",
+    "Deuteronômio",
+    "Josué",
+    "Juízes",
+    "Rute",
+    "1 Samuel",
+    "2 Samuel",
+    "1 Reis",
+    "2 Reis",
+    "1 Crônicas",
+    "2 Crônicas",
+    "Esdras",
+    "Neemias",
+    "Ester",
+    "Jó",
+    "Salmos",
+    "Provérbios",
+    "Eclesiastes",
+    "Cântico dos Cânticos",
+    "Cântico de Salomão",
+    "Isaías",
+    "Jeremias",
+    "Lamentações",
+    "Ezequiel",
+    "Daniel",
+    "Oseias",
+    "Joel",
+    "Amós",
+    "Obadias",
+    "Jonas",
+    "Miqueias",
+    "Naum",
+    "Habacuque",
+    "Sofonias",
+    "Ageu",
+    "Zacarias",
+    "Malaquias",
+  ];
+
+  const hebrewScriptures = books.filter((b) => OT_BOOKS.includes(b));
+  const greekScriptures = books.filter((b) => NT_BOOKS.includes(b));
 
   // --- Busca ---
   async function handleSearch() {
@@ -207,7 +281,6 @@ function BibleContent() {
   return (
     // Fundo escuro global (Dark Mode Nativo)
     <div className="flex flex-col h-screen bg-[#111] text-white overflow-hidden font-sans">
-
 
       {/* --- CONTEÚDO --- */}
       <div className="flex-1 overflow-y-auto bg-background relative no-scrollbar">

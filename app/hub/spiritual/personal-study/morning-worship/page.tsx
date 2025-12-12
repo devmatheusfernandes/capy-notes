@@ -193,7 +193,7 @@ export default function MorningWorshipPage() {
       </AnimatePresence>
 
       {/* Header & Controls */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between sticky top-0 z-40 bg-background/95 backdrop-blur py-2 -mx-4 px-4 sm:static sm:bg-transparent sm:p-0">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between sticky -top-4 z-40 bg-background/95 backdrop-blur py-2 -mx-4 px-4 sm:static sm:bg-transparent sm:p-0">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Adoração Matinal</h1>
           <p className="text-sm text-muted-foreground hidden sm:block">

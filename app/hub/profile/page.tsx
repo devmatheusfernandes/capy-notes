@@ -87,16 +87,6 @@ export default function ProfilePage() {
               {user?.email || "—"}
             </p>
           </div>
-
-          {/* Logout Button */}
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="w-full group hover:bg-red-50 hover:text-red-600 transition-colors"
-          >
-            <LogOut className="size-4 mr-2 group-hover:translate-x-[-2px] transition-transform" />
-            Sair
-          </Button>
         </div>
         </div>
       </div>

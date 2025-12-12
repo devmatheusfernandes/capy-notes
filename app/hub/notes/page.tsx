@@ -284,13 +284,8 @@ function NotesContent() {
   return (
     <div className="grid grid-cols-12 gap-4 pb-20 md:pb-0 relative">
       {/* Mobile Header */}
-      <div className="col-span-12 md:hidden space-y-3 sticky top-0 z-20 bg-background/95 backdrop-blur py-2 border-b">
-        <FolderBreadcrumbs
-          path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
-          onNavigate={handleNavigateFolder}
-        />
-        <div className="flex items-center justify-between px-1">
-          <div className="flex gap-1">
+      <div className="col-span-12 md:hidden space-y-3 sticky top-0 z-20 bg-background/95 backdrop-blur pb-2 border-b">
+        <div className="flex items-center justify-between">
             <MobileActionsSheet
               archived={archived}
               setArchived={setArchived}
@@ -308,7 +303,6 @@ function NotesContent() {
               selectedTagId={selectedTagId}
               setSelectedTagId={setSelectedTagId}
             />
-          </div>
         </div>
       </div>
 
@@ -525,7 +519,7 @@ function NotesContent() {
           <div
             className={cn(
               view === "grid"
-                ? "columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4"
+                ? "columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3"
                 : "flex flex-col space-y-2"
             )}
           >
@@ -541,7 +535,6 @@ function NotesContent() {
                 onToggleSelect={toggleFolderSelected}
                 onClick={() => handleNavigateFolder(f.id)}
                 hasSelectionMode={hasSelection}
-                // itemCount={f.noteCount}
                 actionsMenu={
                   <>
                     <DropdownMenuItem
@@ -639,10 +632,10 @@ function NotesContent() {
                 tags={tags}
                 selected={selectedNotes.includes(n.id)}
                 onToggleSelect={toggleNoteSelected}
-              onClick={() => router.push(`/hub/notes/${n.id}`)}
-              onCheck={handleCheckItem}
-              hasSelectionMode={hasSelection}
-              actionsMenu={
+                onClick={() => router.push(`/hub/notes/${n.id}`)}
+                onCheck={handleCheckItem}
+                hasSelectionMode={hasSelection}
+                actionsMenu={
                   <>
                     <DropdownMenuItem onSelect={() => toggleNoteSelected(n.id)}>
                       {selectedNotes.includes(n.id)

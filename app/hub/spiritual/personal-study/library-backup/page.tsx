@@ -749,7 +749,7 @@ export default function CloudBackupPage() {
                         </p>
                       </div>
 
-                      <div className="pt-2 flex items-center text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                      <div className="pt-2 flex items-center text-xs font-medium text-foreground transition-opacity transform translate-y-2 group-hover:translate-y-0">
                         Clique para abrir editor <ArrowLeft className="h-3 w-3 ml-1 rotate-180"/>
                       </div>
                     </CardContent>

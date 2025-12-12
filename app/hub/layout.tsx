@@ -241,10 +241,7 @@ function HeaderContent({ pathname }: { pathname: string | null }) {
   if (pathname?.startsWith("/hub/spiritual/personal-study")) {
     return (
       <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
-        <span className="font-semibold text-sm">Estudos Pessoais</span>
-        <div className="flex items-center gap-2">
-           <Button variant="ghost" size="sm" className="h-8"><Share2 className="w-4 h-4 mr-2"/> Compartilhar</Button>
-        </div>
+        <span className="font-semibold text-sm">Estudo Pessoal</span>
       </div>
     )
   }
@@ -307,8 +304,9 @@ function HeaderContent({ pathname }: { pathname: string | null }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="default" size="sm" onClick={handleCreateNote}>
-            <FileText className="mr-2 h-4 w-4" /> Nota
+          <Button variant="default" size="sm" onClick={handleCreateNote} aria-label="Criar nota">
+            <FileText className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nota</span>
           </Button>
           <CreateFolderDialog onCreate={handleCreateFolder} />
           <Button variant="ghost" size="icon" onClick={toggleView}>
@@ -325,7 +323,7 @@ function HeaderContent({ pathname }: { pathname: string | null }) {
   
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground capitalize animate-in fade-in">
-        <span>Hub</span>
+        <span>Início</span>
         <ChevronRight className="w-4 h-4" />
         <span className="text-foreground font-medium">{title}</span>
     </div>
