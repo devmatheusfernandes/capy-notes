@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2, LayoutGrid, List, Search, Play, FileText, Check, X } from "lucide-react"
 import { useCurrentUserId } from "@/hooks/notes"
 import { listMorningWorshipMedia, subscribeMorningWorships, formatVttToText, setMorningWorshipNoteLink, type MorningWorshipData } from "@/lib/morningworships"
@@ -22,6 +23,7 @@ export default function MorningWorshipPage() {
   // UI States
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [searchQuery, setSearchQuery] = useState("")
+  const [initialLoading, setInitialLoading] = useState(true)
   
   // Video Player States
   // playingId: controla qual vídeo está tocando INLINE no modo GRID
@@ -35,6 +37,9 @@ export default function MorningWorshipPage() {
         const items = await listMorningWorshipMedia()
         setApiItems(items)
       } catch {}
+      finally {
+        setInitialLoading(false)
+      }
     })()
   }, [])
 
@@ -224,9 +229,8 @@ export default function MorningWorshipPage() {
       {/* Content Area */}
       <motion.div
         variants={containerVariants}
-        initial="hidden"
+        initial={false}
         animate="show"
-        key={`${viewMode}-${searchQuery}`} 
         className={cn(
           "grid gap-4",
           viewMode === "grid" 
@@ -234,6 +238,44 @@ export default function MorningWorshipPage() {
             : "grid-cols-1"
         )}
       >
+        {initialLoading ? (
+          Array.from({ length: viewMode === "grid" ? 8 : 8 }).map((_, idx) => (
+            <div
+              key={`skeleton-${idx}`}
+              className={cn(
+                "group relative overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm",
+                viewMode === "list" && "flex flex-row items-center gap-4 p-3 h-auto"
+              )}
+            >
+              <div
+                className={cn(
+                  "relative bg-muted overflow-hidden shrink-0",
+                  viewMode === "grid" ? "aspect-video w-full" : "h-20 w-32 rounded-lg"
+                )}
+              >
+                <Skeleton className="w-full h-full" />
+              </div>
+              <div
+                className={cn(
+                  "flex flex-col flex-1",
+                  viewMode === "grid" ? "p-4 space-y-3" : "pr-2 gap-1"
+                )}
+              >
+                <Skeleton className={cn(viewMode === "list" ? "h-4 w-48" : "h-5 w-3/4")} />
+                <div
+                  className={cn(
+                    "flex items-center gap-2 mt-auto pt-2",
+                    viewMode === "list" && "pt-0"
+                  )}
+                >
+                  {viewMode === "list" && <Skeleton className="h-8 w-24" />}
+                  <Skeleton className={cn("h-8", viewMode === "grid" ? "w-full" : "w-24")} />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+        <>
         <AnimatePresence mode="popLayout">
           {filteredItems.map((item) => {
             const mw = savedMap.get(item.id)
@@ -344,6 +386,8 @@ export default function MorningWorshipPage() {
           >
             <p>Nenhuma adoração encontrada.</p>
           </motion.div>
+        )}
+        </>
         )}
       </motion.div>
     </div>
