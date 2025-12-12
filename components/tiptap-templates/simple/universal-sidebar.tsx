@@ -65,7 +65,7 @@ export default function UniversalSidebar({
         style={{ height: "100vh" }}
         aria-hidden={!open}
       >
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center justify-between border-b px-4 py-1">
           <div className="text-sm font-medium">{title}</div>
           <Button variant="ghost" size="icon" aria-label="Fechar painel" onClick={() => onOpenChange(false)}>
             <PanelRightClose className="size-4" />

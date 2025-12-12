@@ -93,12 +93,8 @@ import {
   deleteComment,
 } from "@/lib/comments";
 import type { CommentData } from "@/types";
-import {
-  Pencil,
-  Trash2,
-  MessageSquarePlus,
-} from "lucide-react"; // Removi icons não usados (PanelRight...) pois estão no Sidebar
-import UniversalSidebar from "@/components/tiptap-templates/simple/universal-sidebar";
+import { MessageSquarePlus } from "lucide-react";
+import CommentsSidebar from "@/components/tiptap-templates/simple/comments-sidebar";
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -414,6 +410,7 @@ export function SimpleEditor({
       return true;
     });
     if (from !== null && to !== null) {
+      editor.commands.focus();
       const tr = state.tr
         .setSelection(TextSelection.create(state.doc, from, to))
         .scrollIntoView();
@@ -441,6 +438,34 @@ export function SimpleEditor({
     view.dispatch(tr);
   };
 
+  const handlePendingTextChange = async (text: string) => {
+    setNewCommentText(text);
+    if (!userId || !noteId) return;
+    if (hasPendingComment && pendingCommentIdRef.current) {
+      await updateComment(userId, noteId, pendingCommentIdRef.current, { text });
+    }
+  };
+
+  const handleEditCommentText = async (id: string, text: string) => {
+    if (!userId || !noteId) return;
+    await updateComment(userId, noteId, id, { text });
+  };
+
+  const handleDeleteComment = async (id: string) => {
+    if (!userId || !noteId) return;
+    await deleteComment(userId, noteId, id);
+    removeCommentMarks(id);
+  };
+
+  const handleSelectComment = (id: string) => {
+    setActiveCommentId(id);
+    selectCommentById(id);
+  };
+
+  const handleToggleEdit = (id: string) => {
+    setEditingId((prev) => (prev === id ? null : id));
+  };
+
   const rect = useCursorVisibility({
     editor,
     overlayHeight: 0,
@@ -455,14 +480,15 @@ export function SimpleEditor({
   }, [activeCommentId]);
 
   return (
-    <div className="flex flex-row w-full min-h-screen">
+    <div className="flex flex-row w-full min-h-screen items-start">
       <aside
-        className="min-h-screen overflow-y-hidden transition-[width] duration-300 ease-in-out"
+        className="min-h-screen transition-[width] duration-300 ease-in-out"
         style={{
           width: isMobile ? "100%" : isCommentsOpen ? "80%" : "100%",
         }}
       >
         <Toolbar
+          variant="fixed"
           ref={toolbarRef}
           style={{
             ...(isMobile
@@ -512,7 +538,7 @@ export function SimpleEditor({
                 setIsCommentsOpen(true);
               }}
             >
-              <MessageSquarePlus className="tiptap-button-icon" />
+              <MessageSquarePlus className="tiptap-button-icon mr-1" />
               Comentar
             </Button>
           </ToolbarGroup>
@@ -524,7 +550,7 @@ export function SimpleEditor({
           className="simple-editor-content"
         />
       </aside>
-      <UniversalSidebar
+      <CommentsSidebar
         open={isCommentsOpen}
         onOpenChange={(open) => {
           setIsCommentsOpen(open);
@@ -536,85 +562,17 @@ export function SimpleEditor({
         }}
         desktopWidth="20%"
         title="Comentários"
-      >
-        {hasPendingComment && (
-          <div className="p-4">
-            <textarea
-              className="w-full rounded-xs border p-2 text-sm"
-              placeholder="Escreva um comentário…"
-              value={newCommentText}
-              onChange={async (e) => {
-                const text = e.target.value;
-                setNewCommentText(text);
-                if (!userId || !noteId) return;
-                if (hasPendingComment && pendingCommentIdRef.current) {
-                  await updateComment(
-                    userId,
-                    noteId,
-                    pendingCommentIdRef.current,
-                    { text }
-                  );
-                }
-              }}
-            />
-          </div>
-        )}
-        <div className="p-4 flex flex-col gap-2">
-          {comments.map((c) => (
-            <div
-              key={c.id}
-              id={`comment-${c.id}`}
-              className="group relative rounded-xs border p-3 text-sm cursor-pointer"
-              onClick={() => {
-                setActiveCommentId(c.id);
-                selectCommentById(c.id);
-              }}
-            >
-              <div className="text-muted-foreground text-xs mb-2">
-                {c.snippet}
-              </div>
-              <div className="absolute top-2 right-2 hidden gap-1 group-hover:flex">
-                <button
-                  className="rounded-xs bg-secondary px-2 py-1"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    setEditingId((prev) => (prev === c.id ? null : c.id));
-                  }}
-                >
-                  <Pencil className="size-4" />
-                </button>
-                <button
-                  className="rounded-xs bg-destructive px-2 py-1 text-white"
-                  onClick={async (ev) => {
-                    ev.stopPropagation();
-                    if (!userId || !noteId) return;
-                    await deleteComment(userId, noteId, c.id);
-                    removeCommentMarks(c.id);
-                  }}
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-              {editingId === c.id ? (
-                <textarea
-                  className="w-full rounded-xs border p-2"
-                  defaultValue={c.text}
-                  onChange={async (e) => {
-                    if (!userId || !noteId) return;
-                    await updateComment(userId, noteId, c.id, {
-                      text: e.target.value,
-                    });
-                  }}
-                />
-              ) : (
-                <p className="m-0 whitespace-pre-wrap">
-                  {c.text || "(sem conteúdo)"}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </UniversalSidebar>
+        hasPendingComment={hasPendingComment}
+        newCommentText={newCommentText}
+        onChangePendingText={handlePendingTextChange}
+        comments={comments}
+        editingId={editingId}
+        onToggleEdit={handleToggleEdit}
+        onSelectComment={handleSelectComment}
+        onDeleteComment={handleDeleteComment}
+        onEditCommentText={handleEditCommentText}
+        activeId={activeCommentId}
+      />
     </div>
   );
 }
