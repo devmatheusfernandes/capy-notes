@@ -56,6 +56,10 @@ export function createNotesPageActions(cfg: NotesPageActionsConfig) {
 
   const handleNavigateFolder = (folderId?: string) => {
     cfg.setCurrentFolderId(folderId)
+    const q = new URLSearchParams()
+    if (folderId) q.set("folder", folderId)
+    const next = q.toString() ? `/hub/notes?${q.toString()}` : `/hub/notes`
+    cfg.router.push(next)
   }
 
   const handleAddTag = async (name: string, color?: string) => {

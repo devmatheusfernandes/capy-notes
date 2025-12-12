@@ -16,7 +16,7 @@ const BASE_COLORS = ["stone", "green", "orange", "rose", "violet"] as const
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
-  const [baseColor, setBaseColor] = useState<(typeof BASE_COLORS)[number]>("stone")
+  const [baseColor, setBaseColor] = useState<(typeof BASE_COLORS)[number]>("orange")
   const userId = useCurrentUserId()
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [backupLoading, setBackupLoading] = useState(false)
@@ -25,7 +25,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? (localStorage.getItem(BASE_COLOR_KEY) as (typeof BASE_COLORS)[number] | null) : null
-    const initial = saved && BASE_COLORS.includes(saved) ? saved : "stone"
+    const initial = saved && BASE_COLORS.includes(saved) ? saved : "orange"
     setBaseColor(initial)
     if (typeof document !== "undefined") {
       document.documentElement.setAttribute("data-base-color", initial)

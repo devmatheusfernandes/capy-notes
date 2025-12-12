@@ -1,10 +1,11 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { ModeToggle } from "@/components/ui/mode-toggle"
 import { hubNav } from "./nav-items"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useMemo, useState } from "react"
+import { Suspense, useMemo, useState, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator" // Importante para o visual
@@ -42,6 +43,12 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/sonner"
+import FolderBreadcrumbs from "@/components/notes/folder-breadcrumbs"
+import CreateFolderDialog from "@/components/notes/create-folder-dialog"
+import { useCreateNote, useCurrentUserId, useFolders } from "@/hooks/notes"
+import { getFolderPath, createFolder } from "@/lib/folders"
+import { LayoutGrid, List as ListIcon, FileText } from "lucide-react"
+import CapyIcon from '../../public/images/capy-images/capy-icon.png'
 
 export default function HubLayout({
   children,
@@ -80,12 +87,11 @@ export default function HubLayout({
                 <SidebarMenuItem>
                   <SidebarMenuButton size="lg" asChild>
                     <Link href="/hub">
-                      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                        <Command className="size-4" />
-                      </div>
+                        <Image className="flex aspect-square size-8 items-center justify-center rounded-lg" src={CapyIcon} alt="Logo" width={32} height={32} priority />
+                      
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">Spiritual Hub</span>
-                        <span className="truncate text-xs">Personal Study</span>
+                        <span className="truncate font-semibold">CapyNotes</span>
+                        <span className="truncate text-xs">Hub</span>
                       </div>
                     </Link>
                   </SidebarMenuButton>
@@ -243,7 +249,77 @@ function HeaderContent({ pathname }: { pathname: string | null }) {
     )
   }
 
-  // 3. Padrão (Breadcrumbs simples)
+  // 3. Header para Notas (lista)
+  if (pathname === "/hub/notes") {
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const { create } = useCreateNote()
+    const userId = useCurrentUserId()
+    const { folders } = useFolders()
+    const [viewPref, setViewPref] = useState<"list" | "grid">("list")
+
+    useEffect(() => {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("notes_view") : null
+      if (stored === "grid" || stored === "list") setViewPref(stored)
+    }, [])
+
+    const folderId = searchParams?.get("folder") || undefined
+    const folderPath = useMemo(() => getFolderPath(folders, folderId || ""), [folders, folderId])
+
+    const toggleView = () => {
+      const next = viewPref === "list" ? "grid" : "list"
+      setViewPref(next)
+      try {
+        localStorage.setItem("notes_view", next)
+        const ev = new CustomEvent("capynotes_view_changed", { detail: next })
+        window.dispatchEvent(ev)
+      } catch {}
+    }
+
+    const handleNavigateFolder = (fid?: string) => {
+      const q = new URLSearchParams(searchParams?.toString())
+      if (fid) {
+        q.set("folder", fid)
+      } else {
+        q.delete("folder")
+      }
+      const next = q.toString() ? `/hub/notes?${q.toString()}` : `/hub/notes`
+      router.push(next)
+    }
+
+    const handleCreateNote = async () => {
+      const note = await create({ folderId })
+      router.push(`/hub/notes/${note.id}`)
+    }
+
+    const handleCreateFolder = async (name: string) => {
+      const fid = searchParams?.get("folder") || undefined
+      if (!userId) return
+      await createFolder(userId, name, fid)
+    }
+
+    return (
+      <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
+        <div className="flex items-center min-w-0">
+          <FolderBreadcrumbs
+            path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
+            onNavigate={handleNavigateFolder}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="default" size="sm" onClick={handleCreateNote}>
+            <FileText className="mr-2 h-4 w-4" /> Nota
+          </Button>
+          <CreateFolderDialog onCreate={handleCreateFolder} />
+          <Button variant="ghost" size="icon" onClick={toggleView}>
+            {viewPref === "list" ? <LayoutGrid size={20} /> : <ListIcon size={20} />}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // 4. Padrão (Breadcrumbs simples)
   // Pega o último segmento da URL e formata
   const title = pathname?.split("/").pop()?.replace(/-/g, " ") || "Início"
   

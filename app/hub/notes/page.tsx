@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,8 +14,6 @@ import {
 import { getFolderPath, getSubfolders } from "@/lib/folders";
 import { updateNote } from "@/lib/notes";
 import {
-  LayoutGrid,
-  List as ListIcon,
   Folder,
   FileText,
   Archive,
@@ -47,7 +45,7 @@ import { createNotesPageActions } from "@/lib/notes-page-actions";
 import FolderBreadcrumbs from "@/components/notes/folder-breadcrumbs";
 import TagEditorDialog from "@/components/notes/tag-editor-dialog";
 import MobileActionsSheet from "@/components/notes/mobile-actions-sheet";
-import CreateFolderDialog from "@/components/notes/create-folder-dialog";
+ 
 import { cn, toggleNoteChecklistItem } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/notes/confirm-dialog";
@@ -56,6 +54,7 @@ import FolderItem from "@/components/notes/folder-item";
 
 export default function NotesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { create, loading } = useCreateNote();
   const userId = useCurrentUserId();
 
@@ -118,6 +117,22 @@ export default function NotesPage() {
         setView(stored);
       }
     } catch {}
+  }, []);
+
+  useEffect(() => {
+    const fid = searchParams.get("folder") || undefined;
+    setCurrentFolderId(fid);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent;
+      const v = ce.detail as "list" | "grid";
+      if (v === "list" || v === "grid") setView(v);
+    };
+    window.addEventListener("capynotes_view_changed", handler as EventListener);
+    return () =>
+      window.removeEventListener("capynotes_view_changed", handler as EventListener);
   }, []);
 
   useEffect(() => {
@@ -291,13 +306,6 @@ export default function NotesPage() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:block md:col-span-3 lg:col-span-2 space-y-4 sticky top-4 h-[calc(100vh-2rem)] overflow-y-auto pr-2">
-        <Button
-          className="w-full"
-          onClick={handleCreateNote}
-          disabled={loading}
-        >
-          <FileText className="mr-2 h-4 w-4" /> Nova Nota
-        </Button>
         <Input
           placeholder="Buscar notas..."
           value={search}
@@ -367,26 +375,6 @@ export default function NotesPage() {
 
       {/* Main Content */}
       <main className="col-span-12 md:col-span-9 lg:col-span-10 space-y-4 min-h-[80vh]">
-        <div className="hidden md:flex items-center justify-between bg-background z-10 py-1">
-          <FolderBreadcrumbs
-            path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
-            onNavigate={handleNavigateFolder}
-          />
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setView(view === "list" ? "grid" : "list")}
-            >
-              {view === "list" ? (
-                <LayoutGrid size={20} />
-              ) : (
-                <ListIcon size={20} />
-              )}
-            </Button>
-            <CreateFolderDialog onCreate={(n) => handleCreateFolder(n)} />
-          </div>
-        </div>
 
         {/* Floating Bulk Actions */}
         <AnimatePresence>
@@ -543,7 +531,7 @@ export default function NotesPage() {
                 selected={selectedFolders.includes(f.id)}
                 view={view}
                 onToggleSelect={toggleFolderSelected}
-                onClick={() => setCurrentFolderId(f.id)}
+                onClick={() => handleNavigateFolder(f.id)}
                 hasSelectionMode={hasSelection}
                 // itemCount={f.noteCount}
                 actionsMenu={
@@ -562,7 +550,7 @@ export default function NotesPage() {
                       {f.archived ? "Desarquivar" : "Arquivar"}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setCurrentFolderId(f.id)}>
+                    <DropdownMenuItem onSelect={() => handleNavigateFolder(f.id)}>
                       Abrir
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -612,7 +600,7 @@ export default function NotesPage() {
                       {f.archived ? "Desarquivar" : "Arquivar"}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuItem onSelect={() => setCurrentFolderId(f.id)}>
+                    <ContextMenuItem onSelect={() => handleNavigateFolder(f.id)}>
                       Abrir
                     </ContextMenuItem>
                     <ContextMenuSub>
