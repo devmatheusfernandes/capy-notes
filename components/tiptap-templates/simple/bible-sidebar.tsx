@@ -6,6 +6,7 @@ import { Editor } from "@tiptap/react"
 import { parseAllReferences, formatReferenceTitle } from "@/components/utils/bible-parse"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { useRouter } from "next/navigation"
 
 type BibleSidebarProps = {
   open: boolean
@@ -16,7 +17,7 @@ type BibleSidebarProps = {
   selectedText?: string
 }
 
-type Item = { key: string; title: string; content: string }
+type Item = { key: string; title: string; content: string; info?: { book: string; chapter: number; verse?: number; verses?: number[] } }
 
 const cardVariants = {
   hidden: { opacity: 0, y: 10, scale: 0.95 },
@@ -29,6 +30,7 @@ export default function BibleSidebar({ open, onOpenChange, editor, title = "Bíb
   const [selectedItems, setSelectedItems] = React.useState<Item[]>([])
   const [tab, setTab] = React.useState<string>("document")
   const cacheRef = React.useRef(new Map<string, string>())
+  const router = useRouter()
 
   const fetchContentForInfo = React.useCallback(
     async (info: { book: string; chapter: number; verse?: number; verses?: number[] }): Promise<{ title: string; content: string }> => {
@@ -92,7 +94,7 @@ export default function BibleSidebar({ open, onOpenChange, editor, title = "Bíb
         const infos = parseAllReferences(plain)
         for (const info of infos) {
           const { title, content } = await fetchContentForInfo(info)
-          collected.push({ key, title, content })
+          collected.push({ key, title, content, info })
         }
       }
       setItems(collected)
@@ -115,7 +117,7 @@ export default function BibleSidebar({ open, onOpenChange, editor, title = "Bíb
       const collected: Item[] = []
       for (const info of infos) {
         const { title, content } = await fetchContentForInfo(info)
-        collected.push({ key: "selected", title, content })
+        collected.push({ key: "selected", title, content, info })
       }
       setSelectedItems(collected)
     }
@@ -180,7 +182,17 @@ export default function BibleSidebar({ open, onOpenChange, editor, title = "Bíb
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      className="group relative rounded-xl border bg-card p-4 text-sm transition-all hover:shadow-md border-border shadow-sm hover:border-indigo-200 dark:hover:border-indigo-800"
+                      className="group relative rounded-xl border bg-card p-4 text-sm transition-all hover:shadow-md border-border shadow-sm hover:border-indigo-200 dark:hover:border-indigo-800 cursor-pointer"
+                      onClick={() => {
+                        const info = it.info
+                        if (!info) return
+                        const q = new URLSearchParams()
+                        q.set("book", info.book)
+                        q.set("chapter", String(info.chapter))
+                        const v = info.verse ?? (info.verses && info.verses.length > 0 ? info.verses[0] : undefined)
+                        if (typeof v === "number") q.set("verse", String(v))
+                        router.push(`/hub/spiritual/bible?${q.toString()}`)
+                      }}
                     >
                       <div className="mb-2 font-medium text-indigo-600 dark:text-indigo-400">{it.title}</div>
                       <p className="text-foreground/90 whitespace-pre-wrap leading-relaxed">{it.content || ""}</p>

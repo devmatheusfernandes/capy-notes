@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,14 @@ function highlightText(text: string, highlight: string) {
 type ChapterContent = { verse: number; text: string }[];
 
 export default function BibliaJWDarkStylePage() {
+  return (
+    <Suspense fallback={null}>
+      <BibleContent />
+    </Suspense>
+  );
+}
+
+function BibleContent() {
   const params = useSearchParams();
   const router = useRouter();
 
