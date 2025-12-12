@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,14 @@ import { NoteCard } from "@/components/notes/note-card";
 import FolderItem from "@/components/notes/folder-item";
 
 export default function NotesPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Carregando…</div>}>
+      <NotesContent />
+    </Suspense>
+  );
+}
+
+function NotesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { create, loading } = useCreateNote();
