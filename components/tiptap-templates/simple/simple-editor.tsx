@@ -8,6 +8,7 @@ import {
   type Editor,
 } from "@tiptap/react";
 import type { JSONContent } from "@tiptap/core";
+import { getMarkRange } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 
 // --- Tiptap Core Extensions ---
@@ -93,8 +94,10 @@ import {
   deleteComment,
 } from "@/lib/comments";
 import type { CommentData } from "@/types";
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, BookOpen } from "lucide-react";
 import CommentsSidebar from "@/components/tiptap-templates/simple/comments-sidebar";
+import BibleSidebar from "@/components/tiptap-templates/simple/bible-sidebar";
+import { BibleReferenceExtension } from "@/components/tiptap-extension/bible-reference-extension";
 
 const MainToolbarContent = ({
   editor,
@@ -239,6 +242,8 @@ export function SimpleEditor({
   const [editingId, setEditingId] = useState<string | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [isBibleOpen, setIsBibleOpen] = useState(false);
+  const [selectedBibleText, setSelectedBibleText] = useState("");
 
   const getImageUrls = (json: JSONContent): string[] => {
     const urls: string[] = [];
@@ -292,7 +297,30 @@ export function SimpleEditor({
         "aria-label": "Main content area, start typing to enter text.",
         class: "simple-editor",
       },
-      handleClickOn: (_view, _pos, node) => {
+      handleClick: (view, pos) => {
+        try {
+          const { state } = view;
+          const $pos = state.doc.resolve(pos);
+          const linkType = state.schema.marks.link;
+          const range = getMarkRange($pos, linkType);
+          if (range) {
+            const m = $pos.marks().find((mk) => mk.type === linkType);
+            const href = (m?.attrs as Record<string, unknown>)?.["href"] as string | undefined;
+            if (href && href.startsWith("#bible")) {
+              const tr = state.tr.setSelection(TextSelection.create(state.doc, range.from, range.to)).scrollIntoView();
+              view.dispatch(tr);
+              const text = state.doc.textBetween(range.from, range.to, "\n");
+              setSelectedBibleText(text);
+              setIsBibleOpen(true);
+              return true;
+            }
+          }
+        } catch {
+          /* noop */
+        }
+        return false;
+      },
+      handleClickOn: (_view, pos, node) => {
         try {
           const clickedNode = node as unknown as {
             isText?: boolean;
@@ -336,6 +364,7 @@ export function SimpleEditor({
       Subscript,
       Selection,
       CommentMark,
+      BibleReferenceExtension,
       ImageUploadNode.configure({
         accept: "image/*",
         maxSize: MAX_FILE_SIZE,
@@ -494,7 +523,7 @@ export function SimpleEditor({
       <aside
         className="min-h-screen transition-[width] duration-300 ease-in-out"
         style={{
-          width: isMobile ? "100%" : isCommentsOpen ? "80%" : "100%",
+          width: isMobile ? "100%" : isCommentsOpen || isBibleOpen ? "80%" : "100%",
         }}
       >
         <Toolbar
@@ -551,6 +580,12 @@ export function SimpleEditor({
             >
               <MessageSquarePlus className="tiptap-button-icon" />
             </Button>
+            <Button
+              aria-label="Abrir Bíblia"
+              onClick={() => setIsBibleOpen(true)}
+            >
+              <BookOpen className="tiptap-button-icon" />
+            </Button>
           </ToolbarGroup>
         </Toolbar>
 
@@ -560,6 +595,14 @@ export function SimpleEditor({
           className="simple-editor-content"
         />
       </aside>
+      <BibleSidebar
+        open={isBibleOpen}
+        onOpenChange={setIsBibleOpen}
+        desktopWidth="20%"
+        title="Bíblia"
+        editor={editor}
+        selectedText={selectedBibleText}
+      />
       <CommentsSidebar
         open={isCommentsOpen}
         onOpenChange={(open) => {

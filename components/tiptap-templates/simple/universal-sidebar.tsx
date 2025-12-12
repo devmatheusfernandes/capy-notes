@@ -10,7 +10,6 @@ type UniversalSidebarProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
-  // Alterado de number para number | string para aceitar "10%"
   desktopWidth?: number | string 
   title?: string
 }
