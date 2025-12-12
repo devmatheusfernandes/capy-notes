@@ -406,3 +406,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .page-container {
+    @apply space-y-6 max-w-4xl mx-auto;
+  }
+
+  .page-section {
+    @apply space-y-6 px-4;
+  }
+
+  .page-title {
+    @apply text-xl font-semibold;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+}

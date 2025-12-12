@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { signOutUser } from "@/lib/auth"
 import Image from "next/image"
 import { LogOut, User as UserIcon } from "lucide-react"
+import { PageHeader } from "@/components/ui/page-header"
+import Profibara from "../../../public/images/capy-images/profibara.png"
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -48,8 +50,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-full flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="page-container">
+      <PageHeader
+        title="Perfil"
+        subtitle="Informações da conta e sessão"
+        image={Profibara}
+      />
+      <div className="page-section">
+        <div className="w-full max-w-sm mx-auto space-y-8">
         {/* Avatar */}
         <div className="flex justify-center">
           {photo ? (
@@ -89,6 +97,7 @@ export default function ProfilePage() {
             <LogOut className="size-4 mr-2 group-hover:translate-x-[-2px] transition-transform" />
             Sair
           </Button>
+        </div>
         </div>
       </div>
     </div>

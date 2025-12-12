@@ -10,6 +10,8 @@ import { db } from "@/lib/firebase"
 import { doc, onSnapshot, setDoc } from "firebase/firestore"
 import { BOOK_ABBREVIATIONS, setCustomAbbreviations } from "@/lib/bible-abbreviations-pt"
 import { useCurrentUserId } from "@/hooks/notes"
+import { PageHeader } from "@/components/ui/page-header"
+import Capysettings from "../../../../public/images/capy-images/capysettings.png"
 
 export default function PreferenciasPage() {
   const userId = useCurrentUserId()
@@ -93,15 +95,19 @@ export default function PreferenciasPage() {
   }, [newAbbrev, customAbbrevs])
 
   return (
-    <div className="p-4 space-y-6">
-      <h1 className="text-xl font-semibold">Preferências Espirituais</h1>
+    <div className="page-container">
+      <PageHeader
+        title="Preferências"
+        subtitle="Abreviações e configurações para estudo bíblico"
+        image={Capysettings}
+      />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)}>
         <TabsList>
           <TabsTrigger value="biblia">Bíblia</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="biblia" className="space-y-6">
+        <TabsContent value="biblia" className="page-section">
           <div className="space-y-2">
             <h2 className="text-lg font-medium">Abreviações Personalizadas</h2>
             <p className="text-sm text-muted-foreground">
