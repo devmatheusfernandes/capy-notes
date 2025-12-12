@@ -29,6 +29,7 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/sonner"
  
 
 export default function HubLayout({
@@ -151,6 +152,7 @@ export default function HubLayout({
               </div>
             </header>
             <div className="p-2">{children}</div>
+            <Toaster />
           </SidebarInset>
         )}
       </div>

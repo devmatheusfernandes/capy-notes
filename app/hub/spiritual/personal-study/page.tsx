@@ -27,6 +27,23 @@ export default function NotesPage() {
             </div>
           </div>
         </Link>
+
+          <Link href="/hub/spiritual/personal-study/library-backup" className="group block">
+          <div className="rounded-2xl border bg-card text-card-foreground overflow-hidden hover:shadow-md transition-all">
+            <div className="w-full h-36 bg-muted overflow-hidden">
+              <img
+                src="https://cms-imgp.jw-cdn.org/img/p/jwbvod25/univ/art/jwbvod25_univ_wss_47_lg.jpg"
+                alt="Backup do Aplicativo"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                loading="lazy"
+              />
+            </div>
+            <div className="p-4">
+              <div className="font-semibold">Backup do Aplicativo</div>
+              <div className="text-sm text-muted-foreground">Leia ou importe backups do seu aplicativo.</div>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   )
