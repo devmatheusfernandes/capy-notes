@@ -168,7 +168,7 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ImageUploadButton editor={editor} text="Add" />
+        <ImageUploadButton editor={editor} />
       </ToolbarGroup>
 
       <Spacer />
@@ -549,8 +549,7 @@ export function SimpleEditor({
                 setIsCommentsOpen(true);
               }}
             >
-              <MessageSquarePlus className="tiptap-button-icon mr-1" />
-              Comentar
+              <MessageSquarePlus className="tiptap-button-icon" />
             </Button>
           </ToolbarGroup>
         </Toolbar>
