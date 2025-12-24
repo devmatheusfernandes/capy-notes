@@ -10,27 +10,16 @@ import { useCurrentUserId } from "@/hooks/notes"
 import { driveBackupNow } from "@/lib/backup"
 import { db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
-
-const BASE_COLOR_KEY = "capynotes-base-color"
-const BASE_COLORS = ["stone", "green", "orange", "rose", "violet"] as const
+import { BASE_COLORS, useBaseColor } from "@/provider/base-color-provider"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
-  const [baseColor, setBaseColor] = useState<(typeof BASE_COLORS)[number]>("orange")
+  const { baseColor, setBaseColor } = useBaseColor()
   const userId = useCurrentUserId()
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null)
   const [backupLoading, setBackupLoading] = useState(false)
   const [backupError, setBackupError] = useState<string | null>(null)
   const [backupSuccess, setBackupSuccess] = useState(false)
-
-  useEffect(() => {
-    const saved = typeof window !== "undefined" ? (localStorage.getItem(BASE_COLOR_KEY) as (typeof BASE_COLORS)[number] | null) : null
-    const initial = saved && BASE_COLORS.includes(saved) ? saved : "orange"
-    setBaseColor(initial)
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-base-color", initial)
-    }
-  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -60,16 +49,6 @@ export default function SettingsPage() {
       setBackupError((e as Error)?.message || String(e))
     } finally {
       setBackupLoading(false)
-    }
-  }
-
-  const handleBaseColorChange = (value: (typeof BASE_COLORS)[number]) => {
-    setBaseColor(value)
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-base-color", value)
-    }
-    if (typeof window !== "undefined") {
-      localStorage.setItem(BASE_COLOR_KEY, value)
     }
   }
 
@@ -105,7 +84,7 @@ export default function SettingsPage() {
             <div className="space-y-1">
               <h2 className="text-lg font-semibold">Cor base</h2>
               <p className="text-sm text-muted-foreground">Troque a paleta principal: stone, green, orange, rose, violet.</p>
-              <Select value={baseColor} onValueChange={(v) => handleBaseColorChange(v as (typeof BASE_COLORS)[number])}>
+              <Select value={baseColor} onValueChange={(v) => setBaseColor(v as (typeof BASE_COLORS)[number])}>
                 <SelectTrigger className="w-56">
                   <SelectValue placeholder="Selecione a cor base" />
                 </SelectTrigger>

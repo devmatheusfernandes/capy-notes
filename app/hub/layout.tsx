@@ -12,20 +12,15 @@ import { Separator } from "@/components/ui/separator" // Importante para o visua
 import { 
   Search, 
   ChevronLeft, 
-  ChevronRight, 
-  Command, 
+  ChevronRight,  
   User2,
-  LogOut,
-  Save,
-  Share2,
-  MoreVertical
+  LogOut
 } from "lucide-react"
 
 import {
   SidebarMenuSub,
   SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarMenuAction,
+  SidebarMenuSubButton
 } from "@/components/ui/sidebar"
 import {
   SidebarProvider,
@@ -248,73 +243,7 @@ function HeaderContent({ pathname }: { pathname: string | null }) {
 
   // 3. Header para Notas (lista)
   if (pathname === "/hub/notes") {
-    const router = useRouter()
-    const searchParams = useSearchParams()
-    const { create } = useCreateNote()
-    const userId = useCurrentUserId()
-    const { folders } = useFolders()
-    const [viewPref, setViewPref] = useState<"list" | "grid">("list")
-
-    useEffect(() => {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("notes_view") : null
-      if (stored === "grid" || stored === "list") setViewPref(stored)
-    }, [])
-
-    const folderId = searchParams?.get("folder") || undefined
-    const folderPath = useMemo(() => getFolderPath(folders, folderId || ""), [folders, folderId])
-
-    const toggleView = () => {
-      const next = viewPref === "list" ? "grid" : "list"
-      setViewPref(next)
-      try {
-        localStorage.setItem("notes_view", next)
-        const ev = new CustomEvent("capynotes_view_changed", { detail: next })
-        window.dispatchEvent(ev)
-      } catch {}
-    }
-
-    const handleNavigateFolder = (fid?: string) => {
-      const q = new URLSearchParams(searchParams?.toString())
-      if (fid) {
-        q.set("folder", fid)
-      } else {
-        q.delete("folder")
-      }
-      const next = q.toString() ? `/hub/notes?${q.toString()}` : `/hub/notes`
-      router.push(next)
-    }
-
-    const handleCreateNote = async () => {
-      const note = await create({ folderId })
-      router.push(`/hub/notes/${note.id}`)
-    }
-
-    const handleCreateFolder = async (name: string) => {
-      const fid = searchParams?.get("folder") || undefined
-      if (!userId) return
-      await createFolder(userId, name, fid)
-    }
-
-    return (
-      <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
-        <div className="flex items-center min-w-0">
-          <FolderBreadcrumbs
-            path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
-            onNavigate={handleNavigateFolder}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="default" size="sm" onClick={handleCreateNote} aria-label="Criar nota">
-            <FileText className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Nota</span>
-          </Button>
-          <CreateFolderDialog onCreate={handleCreateFolder} />
-          <Button variant="ghost" size="icon" onClick={toggleView}>
-            {viewPref === "list" ? <LayoutGrid size={20} /> : <ListIcon size={20} />}
-          </Button>
-        </div>
-      </div>
-    )
+    return <NotesHeader />
   }
 
   // 4. Padrão (Breadcrumbs simples)
@@ -326,6 +255,76 @@ function HeaderContent({ pathname }: { pathname: string | null }) {
         <span>Início</span>
         <ChevronRight className="w-4 h-4" />
         <span className="text-foreground font-medium">{title}</span>
+    </div>
+  )
+}
+
+function NotesHeader() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { create } = useCreateNote()
+  const userId = useCurrentUserId()
+  const { folders } = useFolders()
+  const [viewPref, setViewPref] = useState<"list" | "grid">("list")
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("notes_view") : null
+    if (stored === "grid" || stored === "list") setViewPref(stored)
+  }, [])
+
+  const folderId = searchParams?.get("folder") || undefined
+  const folderPath = useMemo(() => getFolderPath(folders, folderId || ""), [folders, folderId])
+
+  const toggleView = () => {
+    const next = viewPref === "list" ? "grid" : "list"
+    setViewPref(next)
+    try {
+      localStorage.setItem("notes_view", next)
+      const ev = new CustomEvent("capynotes_view_changed", { detail: next })
+      window.dispatchEvent(ev)
+    } catch {}
+  }
+
+  const handleNavigateFolder = (fid?: string) => {
+    const q = new URLSearchParams(searchParams?.toString())
+    if (fid) {
+      q.set("folder", fid)
+    } else {
+      q.delete("folder")
+    }
+    const next = q.toString() ? `/hub/notes?${q.toString()}` : `/hub/notes`
+    router.push(next)
+  }
+
+  const handleCreateNote = async () => {
+    const note = await create({ folderId })
+    router.push(`/hub/notes/${note.id}`)
+  }
+
+  const handleCreateFolder = async (name: string) => {
+    const fid = searchParams?.get("folder") || undefined
+    if (!userId) return
+    await createFolder(userId, name, fid)
+  }
+
+  return (
+    <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
+      <div className="flex items-center min-w-0">
+        <FolderBreadcrumbs
+          path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
+          onNavigate={handleNavigateFolder}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="default" size="sm" onClick={handleCreateNote} aria-label="Criar nota">
+          <FileText className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Nota</span>
+        </Button>
+        <CreateFolderDialog onCreate={handleCreateFolder} />
+        <Button variant="ghost" size="icon" onClick={toggleView}>
+          {viewPref === "list" ? <LayoutGrid size={20} /> : <ListIcon size={20} />}
+        </Button>
+      </div>
     </div>
   )
 }
