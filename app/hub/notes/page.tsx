@@ -317,7 +317,10 @@ function NotesContent() {
           <Button
             variant={!archived ? "secondary" : "ghost"}
             className="w-full justify-start"
-            onClick={() => setArchived(false)}
+            onClick={() => {
+              setArchived(false);
+              router.push("/hub/notes");
+            }}
           >
             <FileText className="mr-2 h-4 w-4" /> Notas
           </Button>

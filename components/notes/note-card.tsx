@@ -74,8 +74,8 @@ export function NoteCard({
               onClick();
             }}
             className={cn(
-              "flex flex-col w-full rounded-lg border hover:bg-secondary-foreground/30 hover:text-accent-foreground",
-              "bg-secondary-foreground/20 hover:bg-secondary-foreground/30",
+              "flex flex-col w-full rounded-lg border hover:bg-secondary-foreground/30 hover:text-accent-foreground cursor-pointer transition-all duration-300 ease-in-out",
+              "bg-secondary-foreground/20 hover:bg-secondary-foreground/30 transition-all duration-300 ease-in-out",
               selected ? "border-primary ring-1 ring-primary/20" : "border-border/60"
             )}
           >

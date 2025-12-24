@@ -630,7 +630,7 @@ export function SimpleEditor({
         selectedText={selectedBibleText}
       />
       <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <SheetContent side="right">
+        <SheetContent side="right" className="px-3">
           <SheetHeader>
             <SheetTitle>Configurações da Nota</SheetTitle>
           </SheetHeader>
