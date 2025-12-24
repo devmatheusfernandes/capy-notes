@@ -121,3 +121,16 @@ export function getPreviewText(note: NoteData, max = 250): string {
     return "";
   }
 }
+
+// 5. Converte texto puro para estrutura Tiptap simples
+export function textToTiptapContent(text: string) {
+  const lines = text.split('\n');
+  const content = lines.map(line => ({
+    type: "paragraph",
+    content: line.trim() ? [{ type: "text", text: line }] : []
+  }));
+  return {
+    type: "doc",
+    content
+  };
+}

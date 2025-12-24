@@ -5,7 +5,7 @@ import Image from "next/image"
 import { ModeToggle } from "@/components/ui/mode-toggle"
 import { hubNav } from "./nav-items"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useMemo, useState, useEffect } from "react"
+import { Suspense, useMemo, useState, useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator" // Importante para o visual
@@ -14,7 +14,8 @@ import {
   ChevronLeft, 
   ChevronRight,  
   User2,
-  LogOut
+  LogOut,
+  Upload
 } from "lucide-react"
 
 import {
@@ -38,10 +39,12 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/sonner"
+import { toast } from "sonner"
 import FolderBreadcrumbs from "@/components/notes/folder-breadcrumbs"
 import CreateFolderDialog from "@/components/notes/create-folder-dialog"
 import { useCreateNote, useCurrentUserId, useFolders } from "@/hooks/notes"
 import { getFolderPath, createFolder } from "@/lib/folders"
+import { textToTiptapContent } from "@/lib/utils"
 import { LayoutGrid, List as ListIcon, FileText } from "lucide-react"
 import CapyIcon from '../../public/images/capy-images/capy-icon.png'
 
@@ -266,6 +269,7 @@ function NotesHeader() {
   const userId = useCurrentUserId()
   const { folders } = useFolders()
   const [viewPref, setViewPref] = useState<"list" | "grid">("list")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("notes_view") : null
@@ -307,6 +311,30 @@ function NotesHeader() {
     await createFolder(userId, name, fid)
   }
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const text = await file.text()
+      const title = file.name.replace(/\.(txt|md)$/i, "")
+      const content = textToTiptapContent(text)
+      await create({ title, content, folderId })
+    }
+    
+    toast.success(`${files.length} nota(s) importada(s) com sucesso!`)
+
+    // Reset input
+    if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+    }
+  }
+
   return (
     <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
       <div className="flex items-center min-w-0">
@@ -316,6 +344,17 @@ function NotesHeader() {
         />
       </div>
       <div className="flex items-center gap-2">
+        <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            multiple 
+            accept=".txt,.md" 
+            onChange={handleFileChange} 
+        />
+        <Button variant="outline" size="icon" onClick={handleImportClick} title="Importar notas (.txt, .md)">
+            <Upload className="h-4 w-4" />
+        </Button>
         <Button variant="default" size="sm" onClick={handleCreateNote} aria-label="Criar nota">
           <FileText className="h-4 w-4 sm:mr-2" />
           <span className="hidden sm:inline">Nota</span>
