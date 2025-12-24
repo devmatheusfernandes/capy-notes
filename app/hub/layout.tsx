@@ -203,7 +203,7 @@ export default function HubLayout({
 
         {/* --- ÁREA PRINCIPAL --- */}
         {isNoteEditor ? (
-          <div className="flex-1 overflow-hidden">{children}</div>
+          <div className="flex-1 overflow-y-auto">{children}</div>
         ) : (
           <SidebarInset className="flex flex-col h-full overflow-hidden">
             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background z-10 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">

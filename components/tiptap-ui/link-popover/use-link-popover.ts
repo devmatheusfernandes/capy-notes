@@ -66,7 +66,15 @@ export function canSetLink(editor: Editor | null): boolean {
  */
 export function isLinkActive(editor: Editor | null): boolean {
   if (!editor || !editor.isEditable) return false
-  return editor.isActive("link")
+  
+  const isActive = editor.isActive("link")
+  if (!isActive) return false
+
+  const attrs = editor.getAttributes("link")
+  const href = attrs.href as string | undefined
+  if (href?.startsWith("#bible")) return false
+
+  return true
 }
 
 /**
