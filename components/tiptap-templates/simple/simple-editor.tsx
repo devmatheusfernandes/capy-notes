@@ -409,10 +409,12 @@ export function SimpleEditor({
 
     // Apenas seta o conteúdo no primeiro render ou quando vem de fora
     if (isFirstRender.current) {
-      editor.commands.setContent(content as Content);
-      isFirstRender.current = false;
-      const currentJson = editor.getJSON();
-      prevImageUrlsRef.current = new Set(getImageUrls(currentJson));
+      setTimeout(() => {
+        editor.commands.setContent(content as Content);
+        isFirstRender.current = false;
+        const currentJson = editor.getJSON();
+        prevImageUrlsRef.current = new Set(getImageUrls(currentJson));
+      }, 0);
     }
   }, [editor, content]);
 

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { CheckSquare, Square, MoreVertical } from "lucide-react";
+import { CheckSquare, Square, MoreVertical, FileText } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, getChecklistItems, getCoverImage, getPreviewText } from "@/lib/utils";
 import {
@@ -46,6 +47,9 @@ export function NoteCard({
   // Filtra tags visuais
   const noteTags = tags.filter((t) => (note.tagIds || []).includes(t.id));
 
+  // @ts-ignore
+  const isPdf = note.type === "pdf" || note.content?.content?.[0]?.type === "pdf";
+
   return (
     <motion.div
       layout
@@ -90,11 +94,12 @@ export function NoteCard({
 
             <div className="p-5 flex flex-col gap-3">
               {/* Título */}
-              <div className="font-bold text-lg leading-tight break-words">
-                {note.title || <span className="text-muted-foreground italic font-normal">Sem título</span>}
-              </div>
+            <div className="font-bold text-lg leading-tight break-words flex items-center gap-2">
+              {note.title || <span className="text-muted-foreground italic font-normal">Sem título</span>}
+              {isPdf && <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5"><FileText className="w-3 h-3 mr-1" />PDF</Badge>}
+            </div>
 
-              {/* 2. Conteúdo Dinâmico */}
+            {/* 2. Conteúdo Dinâmico */}
               {hasChecklist ? (
                 // --- RENDERIZAÇÃO DE CHECKLIST ---
                 <div className="space-y-2 mt-1">
@@ -140,7 +145,7 @@ export function NoteCard({
               ) : (
                 // --- RENDERIZAÇÃO DE TEXTO ---
                 <div className="text-sm text-muted-foreground line-clamp-4 leading-relaxed whitespace-pre-wrap break-words">
-                  {getPreviewText(note, coverImage ? 120 : 300)}
+                  {isPdf ? "Documento PDF" : getPreviewText(note, coverImage ? 120 : 300)}
                 </div>
               )}
 

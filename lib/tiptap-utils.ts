@@ -16,6 +16,7 @@ import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebas
 import { storage, auth } from "@/lib/firebase"
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+export const MAX_PDF_SIZE = 20 * 1024 * 1024 // 20MB
 
 export const MAC_SYMBOLS: Record<string, string> = {
   mod: "⌘",
@@ -381,6 +382,73 @@ export const handleImageUpload = async (
     return parts.length > 1 ? parts.pop()!.toLowerCase() : "bin"
   })()
   const path = `notes/${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const storageRef = ref(storage, path)
+  const task = uploadBytesResumable(storageRef, file)
+
+  return await new Promise<string>((resolve, reject) => {
+    const unsubscribe = task.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = Math.round(
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        )
+        onProgress?.({ progress })
+      },
+      (error) => {
+        reject(error)
+      },
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref)
+          resolve(url)
+        } catch (err) {
+          reject(err as Error)
+        }
+      }
+    )
+
+    if (abortSignal) {
+      const onAbort = () => {
+        try {
+          task.cancel()
+        } catch {}
+        unsubscribe()
+        reject(new Error("Upload cancelled"))
+      }
+      if (abortSignal.aborted) {
+        onAbort()
+      } else {
+        abortSignal.addEventListener("abort", onAbort, { once: true })
+      }
+    }
+  })
+}
+
+/**
+ * Handles PDF upload with progress tracking and abort capability
+ * @param file The file to upload
+ * @param onProgress Optional callback for tracking upload progress
+ * @param abortSignal Optional AbortSignal for cancelling the upload
+ * @returns Promise resolving to the URL of the uploaded PDF
+ */
+export const handlePdfUpload = async (
+  file: File,
+  onProgress?: (event: { progress: number }) => void,
+  abortSignal?: AbortSignal
+): Promise<string> => {
+  if (!file) {
+    throw new Error("No file provided")
+  }
+
+  if (file.size > MAX_PDF_SIZE) {
+    throw new Error(
+      `File size exceeds maximum allowed (${MAX_PDF_SIZE / (1024 * 1024)}MB)`
+    )
+  }
+
+  const userId = auth.currentUser?.uid || "anonymous"
+  const ext = "pdf"
+  const path = `notes/${userId}/pdfs/${Date.now()}-${crypto.randomUUID()}.${ext}`
   const storageRef = ref(storage, path)
   const task = uploadBytesResumable(storageRef, file)
 

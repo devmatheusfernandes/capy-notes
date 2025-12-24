@@ -19,6 +19,8 @@ export interface NoteData {
   pinned?: boolean
   createdAt: string
   updatedAt: string
+  type?: "pdf" | "note"
+  fileUrl?: string
 }
 
 export interface CommentData {

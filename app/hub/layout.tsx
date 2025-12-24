@@ -45,6 +45,7 @@ import CreateFolderDialog from "@/components/notes/create-folder-dialog"
 import { useCreateNote, useCurrentUserId, useFolders } from "@/hooks/notes"
 import { getFolderPath, createFolder } from "@/lib/folders"
 import { textToTiptapContent } from "@/lib/utils"
+import { handlePdfUpload } from "@/lib/tiptap-utils"
 import { LayoutGrid, List as ListIcon, FileText } from "lucide-react"
 import CapyIcon from '../../public/images/capy-images/capy-icon.png'
 
@@ -319,19 +320,61 @@ function NotesHeader() {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const text = await file.text()
-      const title = file.name.replace(/\.(txt|md)$/i, "")
-      const content = textToTiptapContent(text)
-      await create({ title, content, folderId })
-    }
-    
-    toast.success(`${files.length} nota(s) importada(s) com sucesso!`)
+    let importedCount = 0
+    const toastId = toast.loading("Importando arquivos...")
 
-    // Reset input
-    if (fileInputRef.current) {
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
+        if (file.type === "application/pdf") {
+          try {
+            const url = await handlePdfUpload(file)
+            const content = {
+              type: "doc",
+              content: [
+                {
+                  type: "pdf",
+                  attrs: {
+                    src: url,
+                    title: file.name,
+                  },
+                },
+              ],
+            }
+            // @ts-ignore
+            await create({
+              title: file.name.replace(".pdf", ""),
+              content,
+              folderId,
+              type: "pdf",
+              fileUrl: url
+            })
+            importedCount++
+          } catch (error) {
+            console.error("Error uploading PDF:", error)
+            toast.error(`Erro ao importar ${file.name}`)
+          }
+        } else if (file.name.toLowerCase().endsWith(".txt") || file.name.toLowerCase().endsWith(".md")) {
+          const text = await file.text()
+          const title = file.name.replace(/\.(txt|md)$/i, "")
+          const content = textToTiptapContent(text)
+          await create({ title, content, folderId })
+          importedCount++
+        }
+      }
+    } catch (error) {
+      console.error("Error importing files:", error)
+    } finally {
+      toast.dismiss(toastId)
+      if (importedCount > 0) {
+        toast.success(`${importedCount} nota(s) importada(s) com sucesso!`)
+      }
+
+      // Reset input
+      if (fileInputRef.current) {
         fileInputRef.current.value = ""
+      }
     }
   }
 
@@ -349,10 +392,10 @@ function NotesHeader() {
             ref={fileInputRef} 
             className="hidden" 
             multiple 
-            accept=".txt,.md" 
+            accept=".txt,.md,.pdf" 
             onChange={handleFileChange} 
         />
-        <Button variant="outline" size="icon" onClick={handleImportClick} title="Importar notas (.txt, .md)">
+        <Button variant="outline" size="icon" onClick={handleImportClick} title="Importar notas (.txt, .md, .pdf)">
             <Upload className="h-4 w-4" />
         </Button>
         <Button variant="default" size="sm" onClick={handleCreateNote} aria-label="Criar nota">
