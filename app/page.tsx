@@ -30,7 +30,8 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      router.push("/hub")
+      document.cookie = `auth=1; path=/; max-age=${60 * 60 * 24 * 7}`
+      router.push("/hub/profile")
     }
   }, [user, router])
 

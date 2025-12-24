@@ -44,11 +44,6 @@ export default function ProfilePage() {
     return () => unsub()
   }, [])
 
-  const handleLogout = async () => {
-    await signOutUser()
-    router.replace("/")
-  }
-
   return (
     <div className="page-container">
       <PageHeader
