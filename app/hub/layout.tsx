@@ -14,9 +14,9 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  User2,
   LogOut,
   Upload,
+  BookOpenText,
 } from "lucide-react";
 
 import {
@@ -28,7 +28,6 @@ import {
   SidebarProvider,
   Sidebar,
   SidebarHeader,
-
   SidebarContent,
   SidebarGroup,
   SidebarGroupLabel,
@@ -52,8 +51,8 @@ import { LayoutGrid, List as ListIcon, FileText } from "lucide-react";
 import CapyIcon from "../../public/images/capy-images/capy-icon.png";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { BIBLE_NAMES } from "@/lib/bible-constants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ButtonGroup } from "@/components/ui/button-group";
 
 const MOCK_AVATARS = [
   "/images/mock-profile-picture/rick.jpg",
@@ -592,7 +591,8 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
           </SelectContent>
         </Select>
       </div>
-
+      
+      <ButtonGroup>
       <Button
         variant="ghost"
         size="icon"
@@ -610,6 +610,30 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
       >
         <Search className="w-4 h-4" />
       </Button>
+
+      {bibleView === "reader" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => {
+            const q = new URLSearchParams(searchParams?.toString());
+            if (q.get("showReferences") === "1") {
+              q.delete("showReferences");
+            } else {
+              q.set("showReferences", "1");
+              // Clear specific verse selection when toggling mainly
+              q.delete("refVerse");
+            }
+            const next = q.toString() ? `${pathname}?${q.toString()}` : pathname!;
+            router.push(next, { scroll: false });
+          }}
+          title="Referências Cruzadas"
+        >
+          <BookOpenText className="w-4 h-4" />
+        </Button>
+      )}
+      </ButtonGroup>
     </div>
   );
 }

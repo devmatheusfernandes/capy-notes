@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {  ChevronLeft, Loader2, Search, X } from "lucide-react";
+import {  ChevronLeft, Loader2, Search, X, BookOpenText } from "lucide-react";
+import BibleReferenceSidebar from "@/components/bible/bible-reference-sidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Helper para destacar o termo buscado no texto
@@ -61,6 +62,21 @@ function BibleContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
+  const [showReferences, setShowReferences] = useState(false);
+  const [selectedVerseForRefs, setSelectedVerseForRefs] = useState<number | null>(null);
+
+  // --- Sync URL Params for References ---
+  useEffect(() => {
+    const showRefs = params.get("showReferences") === "1";
+    setShowReferences(showRefs);
+
+    const refVerse = params.get("refVerse");
+    if (refVerse) {
+      setSelectedVerseForRefs(Number(refVerse));
+    } else {
+      setSelectedVerseForRefs(null);
+    }
+  }, [params]);
 
   // --- Carregamento Inicial (Versões e Deep Link) ---
   useEffect(() => {
@@ -232,6 +248,13 @@ function BibleContent() {
   const handleBack = () => {
     if (view === "reader") setView("chapters");
     else if (view === "chapters") setView("books");
+  };
+
+  const handleVerseClick = (verse: number) => {
+    const q = new URLSearchParams(params.toString());
+    q.set("showReferences", "1");
+    q.set("refVerse", String(verse));
+    router.replace(`?${q.toString()}`, { scroll: false });
   };
 
   const NT_BOOKS = [
@@ -522,7 +545,8 @@ function BibleContent() {
 
         {/* --- VIEW 3: LEITURA --- */}
         {view === "reader" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 max-w-[1100px] mx-auto min-h-full">
+          <div className="flex w-full">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 max-w-[1100px] mx-auto min-h-full flex-1">
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -557,9 +581,10 @@ function BibleContent() {
                     <span 
                       key={v.verse} 
                       data-verse={v.verse}
-                      className={`relative inline px-[2px] rounded transition-colors duration-500 ${
+                      className={`relative inline px-[2px] rounded transition-colors duration-500 cursor-pointer hover:bg-muted/50 ${
                         highlightedVerse === v.verse ? "bg-yellow-900/50 text-yellow-100" : ""
                       }`}
+                      onClick={() => handleVerseClick(v.verse)}
                     >
                       <sup className="text-xs font-bold text-primary mr-1 opacity-80 select-none">
                         {v.verse}
@@ -573,6 +598,23 @@ function BibleContent() {
               </div>
             )}
           </motion.div>
+          <BibleReferenceSidebar 
+            open={showReferences} 
+            onOpenChange={(val) => {
+              const q = new URLSearchParams(params.toString());
+              if (val) {
+                q.set("showReferences", "1");
+              } else {
+                q.delete("showReferences");
+                q.delete("refVerse");
+              }
+              router.replace(`?${q.toString()}`, { scroll: false });
+            }} 
+            book={selectedBook} 
+            chapter={selectedChapter || 1} 
+            selectedVerse={selectedVerseForRefs}
+          />
+          </div>
         )}
       </div>
     </div>
