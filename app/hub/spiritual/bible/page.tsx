@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {  ChevronLeft, Loader2, Search, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Helper para destacar o termo buscado no texto
 function highlightText(text: string, highlight: string) {
@@ -42,6 +43,10 @@ function BibleContent() {
   const [chapters, setChapters] = useState<number[]>([]);
   const [content, setContent] = useState<ChapterContent>([]);
   const [notes, setNotes] = useState<string | null>(null);
+  
+  // Estados de Versão
+  const [versions, setVersions] = useState<{id: string, name: string}[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<string>("nwt-pt");
 
   // Estados de Navegação
   const [view, setView] = useState<"books" | "chapters" | "reader">("books");
@@ -57,15 +62,21 @@ function BibleContent() {
   const [error, setError] = useState<string | null>(null);
   const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
 
-  // --- Carregamento Inicial ---
+  // --- Carregamento Inicial (Versões e Deep Link) ---
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/bible");
-        const data = await res.json();
-        setBooks(data.books || []);
+        // Fetch versions
+        const vRes = await fetch("/api/bible?get=versions");
+        const vData = await vRes.json();
+        if (vData.versions && vData.versions.length > 0) {
+           setVersions(vData.versions);
+        }
         
         // Deep linking (se abrir direto com parametros na URL)
+        const urlVersion = params.get("version");
+        if (urlVersion) setSelectedVersion(urlVersion);
+
         const urlBook = params.get("book");
         const urlChapter = params.get("chapter");
         const urlVerse = params.get("verse");
@@ -77,39 +88,67 @@ function BibleContent() {
           if (urlVerse) setHighlightedVerse(Number(urlVerse));
         }
       } catch {
-        setError("Falha ao carregar biblioteca.");
+        setError("Falha ao carregar configurações.");
       }
     })();
   }, []);
+
+  // --- Sync URL Version ---
+  useEffect(() => {
+    const urlVersion = params.get("version");
+    if (urlVersion && urlVersion !== selectedVersion) {
+      setSelectedVersion(urlVersion);
+    }
+  }, [params, selectedVersion]);
+
+  // --- Carregar Livros (Depende da Versão) ---
+  useEffect(() => {
+    (async () => {
+      setLoading(true); // Show loading
+      try {
+        const res = await fetch(`/api/bible?version=${selectedVersion}`);
+        const data = await res.json();
+        setBooks(data.books || []);
+      } catch {
+        setError("Falha ao carregar biblioteca.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [selectedVersion]);
 
   // --- Carregar Capítulos ---
   useEffect(() => {
     if (!selectedBook) return;
     (async () => {
       try {
-        const res = await fetch(`/api/bible?book=${encodeURIComponent(selectedBook)}`);
+        const res = await fetch(`/api/bible?book=${encodeURIComponent(selectedBook)}&version=${selectedVersion}`);
         const data = await res.json();
         setChapters(data.chapters || []);
       } catch {
         setError("Erro ao carregar capítulos.");
       }
     })();
-  }, [selectedBook]);
+  }, [selectedBook, selectedVersion]);
 
   // --- Carregar Texto ---
   useEffect(() => {
     if (!selectedBook || !selectedChapter) return;
     
-    const q = new URLSearchParams();
+    // Preserva parâmetros existentes (especialmente 'version') ao atualizar a URL
+    const q = new URLSearchParams(params.toString());
     q.set("book", selectedBook);
     q.set("chapter", String(selectedChapter));
+    
+    // O router.replace pode causar re-renderizações desnecessárias se não for cuidadoso,
+    // mas aqui é necessário para manter a URL sincronizada com o estado de leitura.
     router.replace(`?${q.toString()}`, { scroll: false });
 
     (async () => {
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/bible?book=${encodeURIComponent(selectedBook)}&chapter=${selectedChapter}`
+          `/api/bible?book=${encodeURIComponent(selectedBook)}&chapter=${selectedChapter}&version=${selectedVersion}`
         );
         const data = await res.json();
         setContent(data.content || []);
@@ -121,7 +160,7 @@ function BibleContent() {
         setLoading(false);
       }
     })();
-  }, [selectedBook, selectedChapter, router]);
+  }, [selectedBook, selectedChapter, router, selectedVersion]);
 
   // --- Scroll para Versículo ---
   useEffect(() => {
@@ -241,17 +280,21 @@ function BibleContent() {
     "Eclesiastes",
     "Cântico dos Cânticos",
     "Cântico de Salomão",
+    "Cantares",
+    "Cânticos",
     "Isaías",
     "Jeremias",
     "Lamentações",
     "Ezequiel",
     "Daniel",
     "Oseias",
+    "Oséias",
     "Joel",
     "Amós",
     "Obadias",
     "Jonas",
     "Miqueias",
+    "Miquéias",
     "Naum",
     "Habacuque",
     "Sofonias",
@@ -268,7 +311,7 @@ function BibleContent() {
     if (!query.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/bible/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/bible/search?q=${encodeURIComponent(query)}&version=${selectedVersion}`);
       const data = await res.json();
       setSearchResults(data.results || []);
     } catch {
@@ -390,9 +433,22 @@ function BibleContent() {
         {view === "books" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-1 sm:p-2 pb-20 max-w-[1100px] mx-auto">
             
+            {loading && (
+               <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+                 <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                 <span className="text-lg font-medium text-foreground">Carregando tradução...</span>
+               </div>
+            )}
+
+            {/* Header com Seletor de Versão */}
+            <div className="flex justify-between items-center mb-6 px-1 mt-2">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">Bíblia Sagrada</h1>
+              {/* Select removido daqui pois agora está no layout */}
+            </div>
+
             {/* Escrituras Hebraicas */}
             <div className="mb-4">
-              <h2 className="text-xs font-bold text-gray-300 uppercase tracking-wide mb-2 px-1 mt-2">
+              <h2 className="text-xs font-bold text-gray-300 uppercase tracking-wide mb-2 px-1">
                 Escrituras Hebraico-Aramaicas
               </h2>
               {/* Grid responsivo: 2 colunas mobile, 3 desktop (similar ao print) */}

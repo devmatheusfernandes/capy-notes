@@ -28,6 +28,7 @@ import {
   SidebarProvider,
   Sidebar,
   SidebarHeader,
+
   SidebarContent,
   SidebarGroup,
   SidebarGroupLabel,
@@ -51,6 +52,8 @@ import { LayoutGrid, List as ListIcon, FileText } from "lucide-react";
 import CapyIcon from "../../public/images/capy-images/capy-icon.png";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { BIBLE_NAMES } from "@/lib/bible-constants";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const MOCK_AVATARS = [
   "/images/mock-profile-picture/rick.jpg",
@@ -522,9 +525,21 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
   const bookParam = searchParams?.get("book") || "";
   const chapterParam = searchParams?.get("chapter") || "";
   const bibleView = chapterParam ? "reader" : bookParam ? "chapters" : "books";
+  
+  const versionParam = searchParams?.get("version") || "nwt-pt";
+  const [versions, setVersions] = useState<{id: string, name: string}[]>([]);
+
+  useEffect(() => {
+    fetch("/api/bible?get=versions")
+      .then(res => res.json())
+      .then(data => {
+        if (data.versions) setVersions(data.versions);
+      })
+      .catch(console.error);
+  }, []);
 
   return (
-    <div className="flex items-center justify-between w-full animate-in fade-in zoom-in-95">
+    <div className="relative flex items-center justify-between w-full animate-in fade-in zoom-in-95">
       <div className="flex items-center gap-2">
         {bibleView !== "books" && (
           <Button
@@ -554,6 +569,28 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
         {bibleView === "books" && (
           <span className="font-semibold text-sm ml-2">Leitura da Bíblia</span>
         )}
+      </div>
+
+      <div className="absolute left-1/2 -translate-x-1/2">
+        <Select 
+          value={versionParam} 
+          onValueChange={(val) => {
+            const q = new URLSearchParams(searchParams?.toString());
+            q.set("version", val);
+            router.push(`${pathname}?${q.toString()}`, { scroll: false });
+          }}
+        >
+          <SelectTrigger className="min-w-full h-8 bg-transparent border-transparent hover:bg-muted/50 focus:ring-0 gap-2 font-semibold text-sm justify-center">
+            <SelectValue placeholder="Selecione a versão" />
+          </SelectTrigger>
+          <SelectContent>
+            {versions.map((v) => (
+              <SelectItem key={v.id} value={v.id}>
+                {v.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Button
