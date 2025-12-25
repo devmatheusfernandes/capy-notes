@@ -30,8 +30,24 @@ export async function GET(request: Request) {
     }
 
     // Detect Schema
-    const hasVersesTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='verses'").get();
-    const isLegacy = !!hasVersesTable;
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
+    const tableNames = tables.map(t => t.name);
+
+    const isLegacy = tableNames.includes('verses');
+    
+    let bookTable = 'book';
+    let verseTable = 'verse';
+    
+    if (!isLegacy) {
+      if (tableNames.includes('book') && tableNames.includes('verse')) {
+         bookTable = 'book';
+         verseTable = 'verse';
+      } else {
+         // Try to find *_books and *_verses
+         bookTable = tableNames.find(n => n.endsWith('_books')) || 'book';
+         verseTable = tableNames.find(n => n.endsWith('_verses')) || 'verse';
+      }
+    }
 
     let results: Array<{
       book: string;
@@ -52,8 +68,8 @@ export async function GET(request: Request) {
     } else {
       const stmt = db.prepare(
         `SELECT b.name as book, v.chapter, v.verse, v.text
-         FROM verse v
-         JOIN book b ON v.book_id = b.id
+         FROM ${verseTable} v
+         JOIN ${bookTable} b ON v.book_id = b.id
          WHERE v.text LIKE ?
          ORDER BY b.id, v.chapter, v.verse
          LIMIT 50`

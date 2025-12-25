@@ -151,9 +151,19 @@ function BibleContent() {
           `/api/bible?book=${encodeURIComponent(selectedBook)}&chapter=${selectedChapter}&version=${selectedVersion}`
         );
         const data = await res.json();
-        setContent(data.content || []);
-        setNotes(data.notes ?? null);
-        setError(null);
+        
+        if (res.status === 404) {
+          setError("Texto/livro sem equivalente para essa tradução.");
+          setContent([]);
+          setNotes(null);
+        } else if (res.ok) {
+           setContent(data.content || []);
+           setNotes(data.notes ?? null);
+           setError(null);
+        } else {
+           setError("Erro ao carregar texto.");
+           setContent([]);
+        }
       } catch {
         setError("Erro ao carregar texto.");
       } finally {
@@ -301,6 +311,9 @@ function BibleContent() {
     "Ageu",
     "Zacarias",
     "Malaquias",
+    // Vulgata/Outros
+    "Tobias", "Judite", "Sabedoria", "Eclesiástico", "Baruque", "1 Macabeus", "2 Macabeus", 
+    "Oração de Manassés", "1 Esdras", "2 Esdras", "Salmo 151", "Laodicenses"
   ];
 
   const hebrewScriptures = books.filter((b) => OT_BOOKS.includes(b));
@@ -434,9 +447,8 @@ function BibleContent() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-1 sm:p-2 pb-20 max-w-[1100px] mx-auto">
             
             {loading && (
-               <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
-                 <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-                 <span className="text-lg font-medium text-foreground">Carregando tradução...</span>
+               <div className="fixed inset-0 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+                 <Loader2 className="h-10 w-10 text-primary animate-spin" />
                </div>
             )}
 

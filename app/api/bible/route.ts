@@ -12,7 +12,7 @@ function loadBible(): Bible {
   return JSON.parse(raw) as Bible;
 }
 
-import { BIBLE_NAMES } from "@/lib/bible-constants";
+import { BIBLE_NAMES, VULGATE_TO_PT, PT_TO_VULGATE } from "@/lib/bible-constants";
 
 function getVersions() {
   const dbDir = path.join(process.cwd(), "bible", "db");
@@ -67,8 +67,24 @@ export async function GET(request: Request) {
 
     if (db) {
       // Detect Schema
-      const hasVersesTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='verses'").get();
-      const isLegacy = !!hasVersesTable;
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
+      const tableNames = tables.map(t => t.name);
+
+      const isLegacy = tableNames.includes('verses');
+      
+      let bookTable = 'book';
+      let verseTable = 'verse';
+      
+      if (!isLegacy) {
+        if (tableNames.includes('book') && tableNames.includes('verse')) {
+           bookTable = 'book';
+           verseTable = 'verse';
+        } else {
+           // Try to find *_books and *_verses
+           bookTable = tableNames.find(n => n.endsWith('_books')) || 'book';
+           verseTable = tableNames.find(n => n.endsWith('_verses')) || 'verse';
+        }
+      }
 
       // No params: return list of books
       if (!book) {
@@ -89,11 +105,22 @@ export async function GET(request: Request) {
           });
         } else {
           // New Schema: book table with id, name
-          const rows = db.prepare(`SELECT name FROM book ORDER BY id`).all() as { name: string }[];
-          books = rows.map(r => r.name);
+          const rows = db.prepare(`SELECT name FROM ${bookTable} ORDER BY id`).all() as { name: string }[];
+          // If this is VULG (English names), map to Portuguese
+          if (version === 'VULG') {
+             books = rows.map(r => VULGATE_TO_PT[r.name] || r.name);
+          } else {
+             books = rows.map(r => r.name);
+          }
         }
         
         return NextResponse.json({ books });
+      }
+
+      // Map Input Book Name for VULG (PT -> English)
+      let queryBook = book;
+      if (version === 'VULG' && PT_TO_VULGATE[book]) {
+        queryBook = PT_TO_VULGATE[book];
       }
 
       // Only book provided: return chapters
@@ -102,12 +129,12 @@ export async function GET(request: Request) {
         if (isLegacy) {
           const rows = db
             .prepare(`SELECT DISTINCT chapter FROM verses WHERE book = ? ORDER BY chapter`)
-            .all(book) as { chapter: number }[];
+            .all(queryBook) as { chapter: number }[];
           chapters = rows.map((r) => r.chapter);
         } else {
           const rows = db
-            .prepare(`SELECT DISTINCT v.chapter FROM verse v JOIN book b ON v.book_id = b.id WHERE b.name = ? ORDER BY v.chapter`)
-            .all(book) as { chapter: number }[];
+            .prepare(`SELECT DISTINCT v.chapter FROM ${verseTable} v JOIN ${bookTable} b ON v.book_id = b.id WHERE b.name = ? ORDER BY v.chapter`)
+            .all(queryBook) as { chapter: number }[];
           chapters = rows.map((r) => r.chapter);
         }
         return NextResponse.json({ book, chapters });
@@ -123,10 +150,10 @@ export async function GET(request: Request) {
         if (isLegacy) {
           const versesRows = db
             .prepare(`SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse`)
-            .all(book, chapNum) as { verse: number; text: string }[];
+            .all(queryBook, chapNum) as { verse: number; text: string }[];
           const notesRow = db
             .prepare(`SELECT notes FROM notes WHERE book = ? AND chapter = ? LIMIT 1`)
-            .get(book, chapNum) as { notes: string } | undefined;
+            .get(queryBook, chapNum) as { notes: string } | undefined;
           
           verses = versesRows.map((r) => r.verse);
           content = versesRows.map((r) => ({ verse: r.verse, text: r.text }));
@@ -135,12 +162,12 @@ export async function GET(request: Request) {
           const versesRows = db
             .prepare(`
               SELECT v.verse, v.text 
-              FROM verse v 
-              JOIN book b ON v.book_id = b.id 
+              FROM ${verseTable} v 
+              JOIN ${bookTable} b ON v.book_id = b.id 
               WHERE b.name = ? AND v.chapter = ? 
               ORDER BY v.verse
             `)
-            .all(book, chapNum) as { verse: number; text: string }[];
+            .all(queryBook, chapNum) as { verse: number; text: string }[];
           
           verses = versesRows.map((r) => r.verse);
           content = versesRows.map((r) => ({ verse: r.verse, text: r.text }));
@@ -158,17 +185,17 @@ export async function GET(request: Request) {
         if (isLegacy) {
           one = db
             .prepare(`SELECT text FROM verses WHERE book = ? AND chapter = ? AND verse = ? LIMIT 1`)
-            .get(book, Number(chapter), vNum) as { text?: string } | undefined;
+            .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
         } else {
           one = db
             .prepare(`
               SELECT v.text 
-              FROM verse v 
-              JOIN book b ON v.book_id = b.id 
+              FROM ${verseTable} v 
+              JOIN ${bookTable} b ON v.book_id = b.id 
               WHERE b.name = ? AND v.chapter = ? AND v.verse = ? 
               LIMIT 1
             `)
-            .get(book, Number(chapter), vNum) as { text?: string } | undefined;
+            .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
         }
 
         if (!one?.text) {
