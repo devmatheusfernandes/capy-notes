@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { Spinner } from "@/components/ui/spinner";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import { hubNav } from "./nav-items";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -58,7 +59,9 @@ const MOCK_AVATARS = [
 
 export default function HubLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
@@ -251,7 +254,11 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
                     <Button
                       variant="outline"
                       className="flex-1 justify-start gap-2 h-9 border-sidebar-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-colors overflow-hidden group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
-                      onClick={() => signOut(auth)}
+                      onClick={async () => {
+                        setIsLoggingOut(true);
+                        await signOut(auth);
+                        router.push("/");
+                      }}
                     >
                       <LogOut className="size-4 shrink-0" />
                       <span className="group-data-[collapsible=icon]:hidden truncate">
@@ -292,6 +299,13 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
             </div>
             <Toaster />
           </SidebarInset>
+        )}
+
+        {isLoggingOut && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+            <Spinner className="h-10 w-10 text-primary mb-4" />
+            <span className="text-lg font-medium text-foreground">Saindo...</span>
+          </div>
         )}
       </div>
     </SidebarProvider>

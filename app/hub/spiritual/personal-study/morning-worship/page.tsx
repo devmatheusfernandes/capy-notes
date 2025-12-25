@@ -311,7 +311,7 @@ export default function MorningWorshipPage() {
                 className={cn(
                   "group relative overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-all",
                   !isPlayingInline && "hover:shadow-md hover:border-primary/20",
-                  viewMode === "list" && "flex flex-row items-center gap-4 p-3 h-auto"
+                  viewMode === "list" && "flex flex-col items-center gap-4 p-3 h-auto"
                 )}
               >
                 {/* Área de Mídia (Capa ou Vídeo) */}
@@ -354,12 +354,12 @@ export default function MorningWorshipPage() {
                 {/* Conteúdo do Texto e Ações */}
                 <div className={cn(
                   "flex flex-col flex-1",
-                  viewMode === "grid" ? "p-4 space-y-3" : "pr-2 gap-1"
+                  viewMode === "grid" ? "p-4 space-y-3" : "flex flex-col items-center pr-2 gap-1"
                 )}>
                   <div className="flex items-start justify-between gap-2">
                     <h3 className={cn(
                       "font-semibold leading-tight",
-                      viewMode === "list" ? "text-base" : "text-lg line-clamp-2"
+                      viewMode === "list" ? "text-base" : "text-lg text-center"
                     )}>
                       {item.title}
                     </h3>

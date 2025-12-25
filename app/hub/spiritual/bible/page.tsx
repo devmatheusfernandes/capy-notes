@@ -474,7 +474,7 @@ function BibleContent() {
                     >
                       <ChevronLeft className="w-4 h-4 mr-1"/> Anterior
                     </Button>
-                    <h2 className="text-2xl font-bold mb-6 text-center text-foreground">{selectedBook} {selectedChapter}</h2>
+                    <h2 className="hidden text-2xl font-bold mb-6 text-center text-foreground">{selectedBook} {selectedChapter}</h2>
                     <Button 
                       variant="ghost"
                       className="text-primary/80 hover:text-primary hover:bg-primary-foreground"

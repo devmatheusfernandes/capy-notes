@@ -28,7 +28,7 @@ import {
 import { 
   Loader2, Cloud, Edit, Trash2, ArrowLeft, Save, Download, 
   Merge, Plus, Search, Tag as TagIcon, MoreVertical, Settings, 
-  FileJson, Filter, X, Check, ChevronsUpDown
+  FileJson, Filter, X, Check, ChevronsUpDown, LayoutGrid, List
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +58,7 @@ export default function CloudBackupPage() {
   // Estados de Navegação
   const [activeBackup, setActiveBackup] = useState<BackupMetadata | null>(null);
   const [isSavingCloud, setIsSavingCloud] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState("");
@@ -249,6 +250,28 @@ export default function CloudBackupPage() {
                 <Search className="h-5 w-5" />
               </Button>
 
+              <div className="hidden sm:flex items-center border rounded-md bg-background mr-1">
+                <Button 
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
+                  size="icon" 
+                  className="h-8 w-8 rounded-none" 
+                  onClick={() => setViewMode('grid')}
+                  title="Visualização em Grade"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-4 bg-border" />
+                <Button 
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+                  size="icon" 
+                  className="h-8 w-8 rounded-none" 
+                  onClick={() => setViewMode('list')}
+                  title="Visualização em Lista"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                    <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5"/></Button>
@@ -304,13 +327,13 @@ export default function CloudBackupPage() {
                  initial={{ height: 0, opacity: 0 }} 
                  animate={{ height: "auto", opacity: 1 }} 
                  exit={{ height: 0, opacity: 0 }}
-                 className="px-4 pb-3 overflow-hidden border-b bg-muted/30"
+                 className="px-4 pb-3 overflow-hidden border-b"
                >
                  <div className="relative mb-3">
                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                    <Input 
                      placeholder="Buscar em títulos, conteúdo ou tags..." 
-                     className="pl-9 h-9 bg-background" 
+                     className="pl-9 h-9" 
                      value={searchTerm} 
                      onChange={e => setSearchTerm(e.target.value)}
                      autoFocus
@@ -389,10 +412,76 @@ export default function CloudBackupPage() {
         </div>
 
         {/* Grid de Conteúdo */}
-        <div className="flex-1 overflow-y-auto p-4 bg-muted/10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl mx-auto pb-20">
+        <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
+          <div className={cn(
+            "max-w-7xl mx-auto pb-20",
+            viewMode === 'grid' 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              : "flex flex-col gap-2"
+          )}>
             {filteredNotes.length > 0 ? filteredNotes.map((note) => {
               const colorObj = JW_COLORS.find(c => c.id === note.ColorIndex) || JW_COLORS[0];
+              
+              if (viewMode === 'list') {
+                return (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={note.NoteId}
+                  >
+                     <Card
+                       className={cn(
+                         "group relative flex flex-row items-center overflow-hidden border transition-all hover:shadow-md cursor-pointer min-h-[60px]",
+                         "hover:border-primary/20",
+                         colorObj.bg
+                       )}
+                       onClick={() => handleEditNote(note)}
+                     >
+                       <div className={cn("absolute left-0 top-0 bottom-0 w-1", colorObj.dot)} />
+                       
+                       <div className="flex-1 flex items-center gap-4 p-3 pl-5">
+                          <div className="flex-1 min-w-0">
+                             <h3 className="font-semibold text-sm truncate" title={note.Title || ""}>
+                               {note.Title || <span className="text-muted-foreground italic">Sem título</span>}
+                             </h3>
+                             <p className="text-xs text-muted-foreground/80 truncate mt-0.5 font-serif">
+                               {note.Content ? note.Content.replace(/\n/g, ' ') : <span className="italic opacity-50">Sem conteúdo...</span>}
+                             </p>
+                          </div>
+                          
+                          {note.Tags.length > 0 && (
+                            <div className="hidden sm:flex flex-wrap gap-1 max-w-[200px] justify-end">
+                              {note.Tags.slice(0, 3).map((tag, i) => (
+                                <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-background/50 text-foreground/80 border shadow-sm whitespace-nowrap">
+                                  #{tag}
+                                </span>
+                              ))}
+                              {note.Tags.length > 3 && (
+                                 <span className="text-[10px] text-muted-foreground">+{note.Tags.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+
+                          <div onClick={e => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 mobile:opacity-100">
+                                  <MoreVertical className="h-4 w-4 text-muted-foreground"/>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditNote(note)}><Edit className="mr-2 h-3 w-3"/> Editar</DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onClick={() => handleDeleteNote(note.NoteId)}><Trash2 className="mr-2 h-3 w-3"/> Excluir</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                       </div>
+                     </Card>
+                  </motion.div>
+                );
+              }
+
               return (
                 <motion.div 
                   layout
@@ -467,10 +556,22 @@ export default function CloudBackupPage() {
                   {editingNote ? "Faça suas alterações abaixo." : "Crie uma nova nota e adicione tags."}
                 </SheetDescription>
               </div>
-              <div className="flex items-center gap-2">
-                {/* Seletor de Cor no Header */}
-                <Select value={editColor} onValueChange={setEditColor}>
-                  <SelectTrigger className="w-[40px] h-[30px] p-0 border-none shadow-none focus:ring-0 bg-transparent">
+            </SheetHeader>
+             
+            {/* Corpo da Sheet */}
+            <ScrollArea className="flex-1 px-6 py-6">
+              <div className="space-y-6">
+                 
+                 {/* Título */}
+                 <div className="flex flex-row gap-2 justify-around space-y-1 h-full">
+                   <Input 
+                      value={editTitle} 
+                      onChange={e => setEditTitle(e.target.value)} 
+                      placeholder="Título da Nota"
+                      className="p-2 text-xl font-bold border-none shadow-none px-4 focus-visible:ring-0 h-auto placeholder:text-muted-foreground/50 bg-transparent"
+                   />
+                       <Select value={editColor} onValueChange={setEditColor}>
+                  <SelectTrigger className="w-[80px] min-h-full p-2 border-none shadow-none focus:ring-0 bg-transparent">
                     <div className={cn("w-4 h-4 rounded-full mx-auto", JW_COLORS.find(c => c.id.toString() === editColor)?.dot || "bg-gray-400")} />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -483,21 +584,6 @@ export default function CloudBackupPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </SheetHeader>
-             
-            {/* Corpo da Sheet */}
-            <ScrollArea className="flex-1 px-6 py-6">
-              <div className="space-y-6">
-                 
-                 {/* Título */}
-                 <div className="space-y-1">
-                   <Input 
-                      value={editTitle} 
-                      onChange={e => setEditTitle(e.target.value)} 
-                      placeholder="Título da Nota"
-                      className="text-xl font-bold border-none shadow-none px-0 focus-visible:ring-0 h-auto placeholder:text-muted-foreground/50 bg-transparent"
-                   />
                  </div>
 
                  {/* Tags com Combobox */}
@@ -601,7 +687,7 @@ export default function CloudBackupPage() {
                       value={editContent} 
                       onChange={e => setEditContent(e.target.value)} 
                       placeholder="Comece a digitar sua nota..." 
-                      className="min-h-[300px] resize-none border-none shadow-none p-0 focus-visible:ring-0 text-base leading-relaxed font-serif bg-transparent"
+                      className="min-h-[300px] resize-none border-none shadow-none p-2 focus-visible:ring-0 text-base leading-relaxed font-serif bg-transparent"
                     />
                  </div>
               </div>

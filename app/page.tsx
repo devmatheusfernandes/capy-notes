@@ -23,13 +23,15 @@ export default function Home() {
     try {
       setLoading(true)
       await signInWithGoogle()
-    } finally {
+    } catch (error) {
+      console.error(error)
       setLoading(false)
     }
   }
 
   useEffect(() => {
     if (user) {
+      setLoading(true)
       document.cookie = `auth=1; path=/; max-age=${60 * 60 * 24 * 7}`
       router.push("/hub/profile")
     }
@@ -42,16 +44,16 @@ export default function Home() {
           <ModeToggle />
         </div>
 
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <Spinner className="size-6" aria-label="Autenticando" />
-            <span>Autenticando...</span>
+        <Button onClick={handleGoogleLogin} disabled={loading}>
+          <Image width={24} height={24} className="w-6 h-6" src="https://www.svgrepo.com/show/475656/google-color.svg" loading="lazy" alt="google logo" />
+          <span>{user ? "Continuar com Google" : "Entrar com Google"}</span>
+        </Button>
+
+        {loading && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+            <Spinner className="h-10 w-10 text-primary mb-4" />
+            <span className="text-lg font-medium text-foreground">Entrando...</span>
           </div>
-        ) : (
-          <Button onClick={handleGoogleLogin}>
-            <Image width={24} height={24} className="w-6 h-6" src="https://www.svgrepo.com/show/475656/google-color.svg" loading="lazy" alt="google logo" />
-            <span>{user ? "Continuar com Google" : "Entrar com Google"}</span>
-          </Button>
         )}
       </div>
     </div>
