@@ -113,3 +113,12 @@ PT_TO_VULGATE["Cantares"] = "Song of Solomon";
 PT_TO_VULGATE["Oséias"] = "Hosea"; // Accent variation
 PT_TO_VULGATE["Miquéias"] = "Micah"; // Accent variation
 PT_TO_VULGATE["Atos dos Apóstolos"] = "Acts";
+
+// Mappings for NWT (Tradução do Novo Mundo) discrepancies
+export const NWT_TO_PT: Record<string, string> = {
+  "Salmo": "Salmos"
+};
+
+export const PT_TO_NWT: Record<string, string> = {
+  "Salmos": "Salmo"
+};

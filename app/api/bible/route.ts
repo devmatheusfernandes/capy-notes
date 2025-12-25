@@ -12,7 +12,7 @@ function loadBible(): Bible {
   return JSON.parse(raw) as Bible;
 }
 
-import { BIBLE_NAMES, VULGATE_TO_PT, PT_TO_VULGATE } from "@/lib/bible-constants";
+import { BIBLE_NAMES, VULGATE_TO_PT, PT_TO_VULGATE, PT_TO_NWT, NWT_TO_PT } from "@/lib/bible-constants";
 
 function getVersions() {
   const dbDir = path.join(process.cwd(), "bible", "db");
@@ -65,147 +65,176 @@ export async function GET(request: Request) {
       );
     }
 
-    if (db) {
-      // Detect Schema
-      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
-      const tableNames = tables.map(t => t.name);
+    try {
+      if (db) {
+        // Detect Schema
+        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
+        const tableNames = tables.map(t => t.name);
 
-      const isLegacy = tableNames.includes('verses');
-      
-      let bookTable = 'book';
-      let verseTable = 'verse';
-      
-      if (!isLegacy) {
-        if (tableNames.includes('book') && tableNames.includes('verse')) {
-           bookTable = 'book';
-           verseTable = 'verse';
-        } else {
-           // Try to find *_books and *_verses
-           bookTable = tableNames.find(n => n.endsWith('_books')) || 'book';
-           verseTable = tableNames.find(n => n.endsWith('_verses')) || 'verse';
-        }
-      }
-
-      // No params: return list of books
-      if (!book) {
-        let books: string[] = [];
-
-        if (isLegacy) {
-          const rows = db.prepare(`SELECT DISTINCT book FROM verses`).all() as { book: string }[];
-          const rawBooks = rows.map((r) => r.book);
-          // Use canonical order from JSON file to sort server-side
-          const canonical = Object.keys(loadBible());
-          books = rawBooks.sort((a, b) => {
-            const ia = canonical.indexOf(a);
-            const ib = canonical.indexOf(b);
-            if (ia === -1 && ib === -1) return a.localeCompare(b);
-            if (ia === -1) return 1;
-            if (ib === -1) return -1;
-            return ia - ib;
-          });
-        } else {
-          // New Schema: book table with id, name
-          const rows = db.prepare(`SELECT name FROM ${bookTable} ORDER BY id`).all() as { name: string }[];
-          // If this is VULG (English names), map to Portuguese
-          if (version === 'VULG') {
-             books = rows.map(r => VULGATE_TO_PT[r.name] || r.name);
+        const isLegacy = tableNames.includes('verses');
+        
+        let bookTable = 'book';
+        let verseTable = 'verse';
+        
+        if (!isLegacy) {
+          if (tableNames.includes('book') && tableNames.includes('verse')) {
+             bookTable = 'book';
+             verseTable = 'verse';
           } else {
-             books = rows.map(r => r.name);
+             // Try to find *_books and *_verses
+             bookTable = tableNames.find(n => n.endsWith('_books')) || 'book';
+             verseTable = tableNames.find(n => n.endsWith('_verses')) || 'verse';
           }
         }
-        
-        return NextResponse.json({ books });
-      }
 
-      // Map Input Book Name for VULG (PT -> English)
-      let queryBook = book;
-      if (version === 'VULG' && PT_TO_VULGATE[book]) {
-        queryBook = PT_TO_VULGATE[book];
-      }
+        // No params: return list of books
+        if (!book) {
+          let books: string[] = [];
 
-      // Only book provided: return chapters
-      if (book && !chapter) {
-        let chapters: number[] = [];
-        if (isLegacy) {
-          const rows = db
-            .prepare(`SELECT DISTINCT chapter FROM verses WHERE book = ? ORDER BY chapter`)
-            .all(queryBook) as { chapter: number }[];
-          chapters = rows.map((r) => r.chapter);
-        } else {
-          const rows = db
-            .prepare(`SELECT DISTINCT v.chapter FROM ${verseTable} v JOIN ${bookTable} b ON v.book_id = b.id WHERE b.name = ? ORDER BY v.chapter`)
-            .all(queryBook) as { chapter: number }[];
-          chapters = rows.map((r) => r.chapter);
-        }
-        return NextResponse.json({ book, chapters });
-      }
+          if (isLegacy) {
+            const rows = db.prepare(`SELECT DISTINCT book FROM verses`).all() as { book: string }[];
+            const rawBooks = rows.map((r) => r.book);
+            
+            // Mapear nomes se for NWT (ex: Salmo -> Salmos)
+            // Isso é crucial pois o frontend filtra baseado em OT_BOOKS/NT_BOOKS que usam "Salmos"
+            const mappedBooks = rawBooks.map(b => NWT_TO_PT[b] || b);
 
-      // Book + chapter, no verse: return verses for chapter
-      if (book && chapter && !verse) {
-        const chapNum = Number(chapter);
-        let verses: number[] = [];
-        let content: { verse: number; text: string }[] = [];
-        let notes: string | null = null;
-
-        if (isLegacy) {
-          const versesRows = db
-            .prepare(`SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse`)
-            .all(queryBook, chapNum) as { verse: number; text: string }[];
-          const notesRow = db
-            .prepare(`SELECT notes FROM notes WHERE book = ? AND chapter = ? LIMIT 1`)
-            .get(queryBook, chapNum) as { notes: string } | undefined;
+            // Use canonical order from JSON file to sort server-side
+            const rawCanonical = Object.keys(loadBible());
+            // Apply mapping to canonical list so it matches the mapped books (e.g. Salmo -> Salmos)
+            const canonical = rawCanonical.map(b => NWT_TO_PT[b] || b);
+            
+            // Ordenar usando os nomes mapeados ou originais se não houver mapeamento
+            books = Array.from(new Set(mappedBooks)).sort((a, b) => {
+              // Reverte o mapeamento para encontrar a ordem canônica original se necessário
+              // Mas como canonical keys geralmente são padrão (Gênesis, Êxodo...), o mapped deve bater
+              // Caso a chave canônica seja "Salmos" e o banco tenha "Salmo", o mapped já virou "Salmos"
+              
+              const ia = canonical.indexOf(a);
+              const ib = canonical.indexOf(b);
+              if (ia === -1 && ib === -1) return a.localeCompare(b);
+              if (ia === -1) return 1;
+              if (ib === -1) return -1;
+              return ia - ib;
+            });
+          } else {
+            // New Schema: book table with id, name
+            const rows = db.prepare(`SELECT name FROM ${bookTable} ORDER BY id`).all() as { name: string }[];
+            // If this is VULG (English names), map to Portuguese
+            // Also normalize NWT names (Salmo -> Salmos)
+            if (version === 'VULG') {
+               books = rows.map(r => VULGATE_TO_PT[r.name] || r.name);
+            } else {
+               books = rows.map(r => NWT_TO_PT[r.name] || r.name);
+               // Log para debug (remover depois)
+               if (version?.includes('nwt')) {
+                  console.log('NWT Books Debug:', books.filter(b => b.includes('Salm')));
+               }
+            }
+          }
           
-          verses = versesRows.map((r) => r.verse);
-          content = versesRows.map((r) => ({ verse: r.verse, text: r.text }));
-          notes = notesRow?.notes ?? null;
-        } else {
-          const versesRows = db
-            .prepare(`
-              SELECT v.verse, v.text 
-              FROM ${verseTable} v 
-              JOIN ${bookTable} b ON v.book_id = b.id 
-              WHERE b.name = ? AND v.chapter = ? 
-              ORDER BY v.verse
-            `)
-            .all(queryBook, chapNum) as { verse: number; text: string }[];
-          
-          verses = versesRows.map((r) => r.verse);
-          content = versesRows.map((r) => ({ verse: r.verse, text: r.text }));
-          // New schema might not have notes table or it's different. Ignoring notes for now.
+          return NextResponse.json({ books });
         }
 
-        return NextResponse.json({ book, chapter: chapNum, verses, content, notes });
+        // Map Input Book Name for VULG (PT -> English)
+        let queryBook = book;
+        if (version === 'VULG' && PT_TO_VULGATE[book]) {
+          queryBook = PT_TO_VULGATE[book];
+        } else if (PT_TO_NWT[book]) {
+          // Check for NWT/Global remapping (Salmos -> Salmo)
+          // We do this check broadly or specifically for NWT if we want
+          // Since "Salmos" -> "Salmo" is safe if the DB has "Salmo"
+          // We can check if the mapped book exists or just try it?
+          // For now, let's map if present in PT_TO_NWT
+           queryBook = PT_TO_NWT[book];
+        }
+
+        // Only book provided: return chapters
+        if (book && !chapter) {
+          let chapters: number[] = [];
+          if (isLegacy) {
+            const rows = db
+              .prepare(`SELECT DISTINCT chapter FROM verses WHERE book = ? ORDER BY chapter`)
+              .all(queryBook) as { chapter: number }[];
+            chapters = rows.map((r) => r.chapter);
+          } else {
+            const rows = db
+              .prepare(`SELECT DISTINCT v.chapter FROM ${verseTable} v JOIN ${bookTable} b ON v.book_id = b.id WHERE b.name = ? ORDER BY v.chapter`)
+              .all(queryBook) as { chapter: number }[];
+            chapters = rows.map((r) => r.chapter);
+          }
+          return NextResponse.json({ book, chapters });
+        }
+
+        // Book + chapter, no verse: return verses for chapter
+        if (book && chapter && !verse) {
+          const chapNum = Number(chapter);
+          let verses: number[] = [];
+          let content: { verse: number; text: string }[] = [];
+          let notes: string | null = null;
+
+          if (isLegacy) {
+            const versesRows = db
+              .prepare(`SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse`)
+              .all(queryBook, chapNum) as { verse: number; text: string }[];
+            const notesRow = db
+              .prepare(`SELECT notes FROM notes WHERE book = ? AND chapter = ? LIMIT 1`)
+              .get(queryBook, chapNum) as { notes: string } | undefined;
+            
+            verses = versesRows.map((r) => r.verse);
+            content = versesRows.map((r) => ({ verse: r.verse, text: r.text }));
+            notes = notesRow?.notes ?? null;
+          } else {
+            const versesRows = db
+              .prepare(`
+                SELECT v.verse, v.text 
+                FROM ${verseTable} v 
+                JOIN ${bookTable} b ON v.book_id = b.id 
+                WHERE b.name = ? AND v.chapter = ? 
+                ORDER BY v.verse
+              `)
+              .all(queryBook, chapNum) as { verse: number; text: string }[];
+            
+            verses = versesRows.map((r) => r.verse);
+            content = versesRows.map((r) => ({ verse: r.verse, text: r.text }));
+            // New schema might not have notes table or it's different. Ignoring notes for now.
+          }
+
+          return NextResponse.json({ book, chapter: chapNum, verses, content, notes });
+        }
+
+        // Book + chapter + verse: return the specific verse
+        if (book && chapter && verse) {
+          const vNum = Number(verse);
+          let one: { text?: string } | undefined;
+
+          if (isLegacy) {
+            one = db
+              .prepare(`SELECT text FROM verses WHERE book = ? AND chapter = ? AND verse = ? LIMIT 1`)
+              .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
+          } else {
+            one = db
+              .prepare(`
+                SELECT v.text 
+                FROM ${verseTable} v 
+                JOIN ${bookTable} b ON v.book_id = b.id 
+                WHERE b.name = ? AND v.chapter = ? AND v.verse = ? 
+                LIMIT 1
+              `)
+              .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
+          }
+
+          if (!one?.text) {
+            return NextResponse.json(
+              { error: `Versículo não encontrado: ${verse}` },
+              { status: 404 }
+            );
+          }
+          return NextResponse.json({ book, chapter: Number(chapter), verse: vNum, text: one.text });
+        }
       }
-
-      // Book + chapter + verse: return the specific verse
-      if (book && chapter && verse) {
-        const vNum = Number(verse);
-        let one: { text?: string } | undefined;
-
-        if (isLegacy) {
-          one = db
-            .prepare(`SELECT text FROM verses WHERE book = ? AND chapter = ? AND verse = ? LIMIT 1`)
-            .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
-        } else {
-          one = db
-            .prepare(`
-              SELECT v.text 
-              FROM ${verseTable} v 
-              JOIN ${bookTable} b ON v.book_id = b.id 
-              WHERE b.name = ? AND v.chapter = ? AND v.verse = ? 
-              LIMIT 1
-            `)
-            .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
-        }
-
-        if (!one?.text) {
-          return NextResponse.json(
-            { error: `Versículo não encontrado: ${verse}` },
-            { status: 404 }
-          );
-        }
-        return NextResponse.json({ book, chapter: Number(chapter), verse: vNum, text: one.text });
-      }
+    } finally {
+      if (db) db.close();
     }
 
     // Fallback to JSON
