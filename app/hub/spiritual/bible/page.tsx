@@ -9,6 +9,24 @@ import {  ChevronLeft, Loader2, Search, X, BookOpenText } from "lucide-react";
 import BibleReferenceSidebar from "@/components/bible/bible-reference-sidebar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+// Helper para parsear parâmetro de versículo da URL
+function parseVerseParam(param: string): number[] {
+  const verses: number[] = [];
+  const parts = param.split(',');
+  parts.forEach(p => {
+    if (p.includes('-')) {
+      const [start, end] = p.split('-').map(Number);
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let i = start; i <= end; i++) verses.push(i);
+      }
+    } else {
+      const v = Number(p);
+      if (!isNaN(v)) verses.push(v);
+    }
+  });
+  return verses;
+}
+
 // Helper para destacar o termo buscado no texto
 function highlightText(text: string, highlight: string) {
   if (!highlight.trim()) return text;
@@ -61,7 +79,7 @@ function BibleContent() {
   const [showSearch, setShowSearch] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
+  const [highlightedVerses, setHighlightedVerses] = useState<number[]>([]);
   const [showReferences, setShowReferences] = useState(false);
   const [selectedVerseForRefs, setSelectedVerseForRefs] = useState<number | null>(null);
 
@@ -101,13 +119,16 @@ function BibleContent() {
           setSelectedBook(urlBook);
           setSelectedChapter(Number(urlChapter));
           setView("reader");
-          if (urlVerse) setHighlightedVerse(Number(urlVerse));
+          if (urlVerse) {
+             setHighlightedVerses(parseVerseParam(urlVerse));
+          }
         }
       } catch {
         setError("Falha ao carregar configurações.");
       }
     })();
   }, []);
+
 
   // --- Sync URL Version ---
   useEffect(() => {
@@ -190,15 +211,16 @@ function BibleContent() {
 
   // --- Scroll para Versículo ---
   useEffect(() => {
-    if (view === "reader" && highlightedVerse && !loading && content.length > 0) {
-      const el = document.querySelector(`[data-verse="${highlightedVerse}"]`);
+    if (view === "reader" && highlightedVerses.length > 0 && !loading && content.length > 0) {
+      // Scroll to the first highlighted verse
+      const firstVerse = highlightedVerses[0];
+      const el = document.querySelector(`[data-verse="${firstVerse}"]`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
-        const t = setTimeout(() => setHighlightedVerse(null), 3000);
-        return () => clearTimeout(t);
+        // Removed timeout to keep highlight persistent
       }
     }
-  }, [view, highlightedVerse, loading, content]);
+  }, [view, highlightedVerses, loading, content]);
 
   // Sincroniza painel de busca com parâmetro de URL
   useEffect(() => {
@@ -441,7 +463,7 @@ function BibleContent() {
                           onClick={() => {
                             setSelectedBook(r.book);
                             setSelectedChapter(r.chapter);
-                            setHighlightedVerse(r.verse);
+                            setHighlightedVerses(r.verse);
                             setView("reader");
                             setShowSearch(false);
                           }}
@@ -582,7 +604,7 @@ function BibleContent() {
                       key={v.verse} 
                       data-verse={v.verse}
                       className={`relative inline px-[2px] rounded transition-colors duration-500 cursor-pointer hover:bg-muted/50 ${
-                        highlightedVerse === v.verse ? "bg-yellow-900/50 text-yellow-100" : ""
+                        highlightedVerses.includes(v.verse) ? "bg-yellow-900/50 text-yellow-100" : ""
                       }`}
                       onClick={() => handleVerseClick(v.verse)}
                     >
