@@ -116,9 +116,11 @@ PT_TO_VULGATE["Atos dos Apóstolos"] = "Acts";
 
 // Mappings for NWT (Tradução do Novo Mundo) discrepancies
 export const NWT_TO_PT: Record<string, string> = {
-  "Salmo": "Salmos"
+  "Salmo": "Salmos",
+  "Filêmon": "Filemom"
 };
 
 export const PT_TO_NWT: Record<string, string> = {
-  "Salmos": "Salmo"
+  "Salmos": "Salmo",
+  "Filemom": "Filêmon"
 };

@@ -13,6 +13,7 @@ function loadBible(): Bible {
 }
 
 import { BIBLE_NAMES, VULGATE_TO_PT, PT_TO_VULGATE, PT_TO_NWT, NWT_TO_PT } from "@/lib/bible-constants";
+import { BIBLE_BOOKS_PT } from "@/lib/bible-books-pt";
 
 function getVersions() {
   const dbDir = path.join(process.cwd(), "bible", "db");
@@ -99,10 +100,8 @@ export async function GET(request: Request) {
             // Isso é crucial pois o frontend filtra baseado em OT_BOOKS/NT_BOOKS que usam "Salmos"
             const mappedBooks = rawBooks.map(b => NWT_TO_PT[b] || b);
 
-            // Use canonical order from JSON file to sort server-side
-            const rawCanonical = Object.keys(loadBible());
-            // Apply mapping to canonical list so it matches the mapped books (e.g. Salmo -> Salmos)
-            const canonical = rawCanonical.map(b => NWT_TO_PT[b] || b);
+            // Use canonical order from constant to sort server-side
+            const canonical = [...BIBLE_BOOKS_PT];
             
             // Ordenar usando os nomes mapeados ou originais se não houver mapeamento
             books = Array.from(new Set(mappedBooks)).sort((a, b) => {
@@ -110,8 +109,8 @@ export async function GET(request: Request) {
               // Mas como canonical keys geralmente são padrão (Gênesis, Êxodo...), o mapped deve bater
               // Caso a chave canônica seja "Salmos" e o banco tenha "Salmo", o mapped já virou "Salmos"
               
-              const ia = canonical.indexOf(a);
-              const ib = canonical.indexOf(b);
+              const ia = canonical.indexOf(a as any);
+              const ib = canonical.indexOf(b as any);
               if (ia === -1 && ib === -1) return a.localeCompare(b);
               if (ia === -1) return 1;
               if (ib === -1) return -1;
