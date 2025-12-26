@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import UniversalSidebar from "@/components/tiptap-templates/simple/universal-sidebar"
-import { Loader2, ArrowRight } from "lucide-react"
+import { Loader2, ArrowRight, ChevronRight, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useBibleReference } from "@/hooks/use-bible-reference"
 
 type BibleReferenceSidebarProps = {
   open: boolean
@@ -17,14 +18,80 @@ type Reference = {
   book: string
   chapter: number
   verse: number
-  text: string
+  text?: string
   vid: number
+}
+
+function ReferenceItem({ refData }: { refData: Reference }) {
+  const [isOpen, setIsOpen] = React.useState(false)
+  const router = useRouter()
+  
+  // Fetch text only when open and if text is missing
+  const shouldFetch = isOpen && !refData.text
+  
+  const { data, loading } = useBibleReference({
+    book: shouldFetch ? refData.book : undefined,
+    chapter: shouldFetch ? refData.chapter : undefined,
+    verse: shouldFetch ? refData.verse : undefined
+  })
+
+  const handleNavigate = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const params = new URLSearchParams()
+    params.set("book", refData.book)
+    params.set("chapter", String(refData.chapter))
+    params.set("verse", String(refData.verse))
+    router.push(`/hub/spiritual/bible?${params.toString()}`)
+  }
+
+  const displayText = data?.text || refData.text
+
+  return (
+    <div className="group text-sm bg-muted/30 rounded-md border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 transition-all overflow-hidden">
+      <div 
+        className="flex justify-between items-center p-2 cursor-pointer select-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-2">
+           {isOpen ? (
+             <ChevronDown className="w-3 h-3 text-muted-foreground" />
+           ) : (
+             <ChevronRight className="w-3 h-3 text-muted-foreground" />
+           )}
+           <p className="font-medium text-xs text-muted-foreground group-hover:text-primary transition-colors">
+             {refData.book} {refData.chapter}:{refData.verse}
+           </p>
+        </div>
+        <button 
+          onClick={handleNavigate}
+          className="p-1 rounded-sm hover:bg-background/50 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Ir para versículo"
+        >
+          <ArrowRight className="w-3 h-3 text-muted-foreground hover:text-primary" />
+        </button>
+      </div>
+      
+      {isOpen && (
+        <div className="px-3 pb-3 pt-0 animate-in slide-in-from-top-1 fade-in duration-200">
+           {loading ? (
+             <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+               <Loader2 className="w-3 h-3 animate-spin" />
+               <span>Carregando...</span>
+             </div>
+           ) : (
+             <p className="text-foreground/90 leading-relaxed text-xs border-l-2 border-primary/20 pl-2">
+               {displayText}
+             </p>
+           )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function BibleReferenceSidebar({ open, onOpenChange, book, chapter, selectedVerse }: BibleReferenceSidebarProps) {
   const [references, setReferences] = React.useState<Record<string, Reference[]>>({})
   const [loading, setLoading] = React.useState(false)
-  const router = useRouter()
 
   React.useEffect(() => {
     if (!open || !book || !chapter) return
@@ -48,15 +115,6 @@ export default function BibleReferenceSidebar({ open, onOpenChange, book, chapte
     return filtered
   }, [references, selectedVerse])
 
-  const handleNavigate = (ref: Reference) => {
-    const params = new URLSearchParams()
-    params.set("book", ref.book)
-    params.set("chapter", String(ref.chapter))
-    params.set("verse", String(ref.verse))
-    router.push(`/hub/spiritual/bible?${params.toString()}`)
-  }
-
-
   return (
     <UniversalSidebar open={open} onOpenChange={onOpenChange} title="Referências Cruzadas" desktopWidth="25%">
       <div className="p-4 space-y-6">
@@ -69,26 +127,13 @@ export default function BibleReferenceSidebar({ open, onOpenChange, book, chapte
         ) : (
           Object.entries(filteredReferences).map(([verse, refs]) => (
             <div key={verse} className="space-y-2">
-              <h3 className="font-semibold text-sm border-b pb-1 text-primary sticky top-0 bg-background z-10">
-                Versículo {verse}
+              <h3 className="font-semibold text-sm border-b pb-1 text-primary sticky top-0 bg-background z-10 flex items-center justify-between">
+                <span>Versículo {verse}</span>
+                <span className="text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{refs.length}</span>
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {refs.map((ref, i) => (
-                  <div 
-                    key={i} 
-                    className="group text-sm bg-muted/30 p-2 rounded-md border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors cursor-pointer relative"
-                    onClick={() => handleNavigate(ref)}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="font-medium text-xs text-muted-foreground group-hover:text-primary transition-colors">
-                        {ref.book} {ref.chapter}:{ref.verse}
-                      </p>
-                      <ArrowRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <p className="text-foreground/90 leading-relaxed text-xs">
-                      {ref.text}
-                    </p>
-                  </div>
+                  <ReferenceItem key={i} refData={ref} />
                 ))}
               </div>
             </div>

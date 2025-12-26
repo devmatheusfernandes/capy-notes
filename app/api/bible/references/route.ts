@@ -94,7 +94,6 @@ export async function GET(request: Request) {
 
     // Group by source verse
     const grouped: Record<number, any[]> = {};
-    const targetIds: number[] = [];
 
     refs.forEach((r: any) => {
       const src = parseVerseId(r.vid);
@@ -102,7 +101,6 @@ export async function GET(request: Request) {
         grouped[src.verse] = [];
       }
       const target = parseVerseId(r.sv);
-      targetIds.push(r.sv); // Collect for fetching text
       
       grouped[src.verse].push({
         book: getBookName(target.bookId),
@@ -112,78 +110,7 @@ export async function GET(request: Request) {
       });
     });
 
-    // Fetch texts for targets
-    // We can't easily do WHERE IN (...) for hundreds of items efficiently in one go without building a big query
-    // But we can try or just fetch on demand? 
-    // The user wants "sidebar layout... showing references". Usually showing the text snippet is good.
-    // Let's try to fetch texts.
-    
-    const bibleDb = openBibleDb();
-    const texts: Record<string, string> = {};
-
-    if (bibleDb && targetIds.length > 0) {
-      try {
-        // Optimization: Prepare a statement to get text by book, chapter, verse
-        // Or since we have mapped IDs back to names, we need to query by name/chapter/verse
-        // Using the new schema from `app/api/bible/route.ts`
-        
-        const tables = bibleDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
-        const tableNames = tables.map(t => t.name);
-        const isLegacy = tableNames.includes('verses');
-        
-        let bookTable = 'book';
-        let verseTable = 'verse';
-        
-        if (!isLegacy) {
-             bookTable = tableNames.find(n => n.endsWith('_books')) || 'book';
-             verseTable = tableNames.find(n => n.endsWith('_verses')) || 'verse';
-        }
-
-        // We can iterate and fetch. It's SQLite, so hundreds of small queries are actually quite fast (microseconds).
-        // A single query with big OR or IN is better but complex to build with book names.
-        // Let's iterate for now.
-        
-        const stmtLegacy = bibleDb.prepare('SELECT text FROM verses WHERE book = ? AND chapter = ? AND verse = ?');
-        const stmtNew = bibleDb.prepare(`
-          SELECT v.text 
-          FROM ${verseTable} v 
-          JOIN ${bookTable} b ON v.book_id = b.id 
-          WHERE b.name = ? AND v.chapter = ? AND v.verse = ?
-        `);
-
-        const stmt = isLegacy ? stmtLegacy : stmtNew;
-
-        // Unique targets to avoid fetching duplicates
-        const uniqueTargets = new Set<string>();
-        
-        Object.values(grouped).flat().forEach(ref => {
-          const key = `${ref.book}|${ref.chapter}|${ref.verse}`;
-          if (!uniqueTargets.has(key)) {
-            uniqueTargets.add(key);
-            const row = stmt.get(ref.book, ref.chapter, ref.verse) as { text: string } | undefined;
-            if (row) {
-              texts[key] = row.text;
-            }
-          }
-        });
-
-      } catch (e) {
-        console.error("Error fetching texts", e);
-      } finally {
-        bibleDb.close();
-      }
-    }
-
-    // Attach texts to result
-    const result: Record<number, any[]> = {};
-    for (const v in grouped) {
-      result[v] = grouped[v].map(ref => ({
-        ...ref,
-        text: texts[`${ref.book}|${ref.chapter}|${ref.verse}`] || ""
-      }));
-    }
-
-    return NextResponse.json({ references: result });
+    return NextResponse.json({ references: grouped });
 
   } catch (e) {
     console.error(e);
