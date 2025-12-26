@@ -44,6 +44,23 @@ function openDb(version?: string) {
   return new Database(sqlitePath, { readonly: true });
 }
 
+function parseVerseRange(verseStr: string): number[] {
+  const parts = verseStr.split(',');
+  const verses: number[] = [];
+  parts.forEach(p => {
+    if (p.includes('-')) {
+      const [start, end] = p.split('-').map(n => parseInt(n.trim()));
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let i = start; i <= end; i++) verses.push(i);
+      }
+    } else {
+      const v = parseInt(p.trim());
+      if (!isNaN(v)) verses.push(v);
+    }
+  });
+  return [...new Set(verses)].sort((a, b) => a - b);
+}
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -202,34 +219,78 @@ export async function GET(request: Request) {
           return NextResponse.json({ book, chapter: chapNum, verses, content, notes });
         }
 
-        // Book + chapter + verse: return the specific verse
+        // Book + chapter + verse: return the specific verse or range
         if (book && chapter && verse) {
-          const vNum = Number(verse);
-          let one: { text?: string } | undefined;
+          const requestedVerses = parseVerseRange(verse);
+          
+          if (requestedVerses.length === 0) {
+             return NextResponse.json({ error: `Formato de versículo inválido: ${verse}` }, { status: 400 });
+          }
 
+          // Single verse optimization and backward compatibility
+          if (requestedVerses.length === 1) {
+             const vNum = requestedVerses[0];
+             let one: { text?: string } | undefined;
+
+             if (isLegacy) {
+               one = db
+                 .prepare(`SELECT text FROM verses WHERE book = ? AND chapter = ? AND verse = ? LIMIT 1`)
+                 .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
+             } else {
+               one = db
+                 .prepare(`
+                   SELECT v.text 
+                   FROM ${verseTable} v 
+                   JOIN ${bookTable} b ON v.book_id = b.id 
+                   WHERE b.name = ? AND v.chapter = ? AND v.verse = ? 
+                   LIMIT 1
+                 `)
+                 .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
+             }
+
+             if (!one?.text) {
+               return NextResponse.json(
+                 { error: `Versículo não encontrado: ${verse}` },
+                 { status: 404 }
+               );
+             }
+             return NextResponse.json({ book, chapter: Number(chapter), verse: vNum, text: one.text });
+          }
+
+          // Multiple verses
+          let content: { verse: number; text: string }[] = [];
+          
           if (isLegacy) {
-            one = db
-              .prepare(`SELECT text FROM verses WHERE book = ? AND chapter = ? AND verse = ? LIMIT 1`)
-              .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
+             const placeholders = requestedVerses.map(() => '?').join(',');
+             const versesRows = db.prepare(
+               `SELECT verse, text FROM verses WHERE book = ? AND chapter = ? AND verse IN (${placeholders}) ORDER BY verse`
+             ).all(queryBook, Number(chapter), ...requestedVerses) as { verse: number; text: string }[];
+             content = versesRows;
           } else {
-            one = db
-              .prepare(`
-                SELECT v.text 
+             const placeholders = requestedVerses.map(() => '?').join(',');
+             const versesRows = db.prepare(`
+                SELECT v.verse, v.text 
                 FROM ${verseTable} v 
                 JOIN ${bookTable} b ON v.book_id = b.id 
-                WHERE b.name = ? AND v.chapter = ? AND v.verse = ? 
-                LIMIT 1
-              `)
-              .get(queryBook, Number(chapter), vNum) as { text?: string } | undefined;
+                WHERE b.name = ? AND v.chapter = ? AND v.verse IN (${placeholders})
+                ORDER BY v.verse
+             `).all(queryBook, Number(chapter), ...requestedVerses) as { verse: number; text: string }[];
+             content = versesRows;
           }
-
-          if (!one?.text) {
-            return NextResponse.json(
-              { error: `Versículo não encontrado: ${verse}` },
-              { status: 404 }
-            );
+          
+          if (content.length === 0) {
+             return NextResponse.json({ error: `Nenhum versículo encontrado para: ${verse}` }, { status: 404 });
           }
-          return NextResponse.json({ book, chapter: Number(chapter), verse: vNum, text: one.text });
+          
+          const text = content.map(c => c.text).join(' ');
+          
+          return NextResponse.json({ 
+            book, 
+            chapter: Number(chapter), 
+            verses: content.map(c => c.verse), 
+            content,
+            text 
+          });
         }
       }
     } finally {
@@ -279,15 +340,45 @@ export async function GET(request: Request) {
       return NextResponse.json({ book, chapter: Number(chapter), verses, content, notes });
     }
 
-    // Book + chapter + verse: return the specific verse
-    const text = chapterData.versos?.[verse!];
-    if (!text) {
-      return NextResponse.json(
-        { error: `Versículo não encontrado: ${verse}` },
-        { status: 404 }
-      );
+    // Book + chapter + verse: return the specific verse or range
+    const requestedVerses = parseVerseRange(verse!);
+    if (requestedVerses.length === 0) {
+      return NextResponse.json({ error: `Formato de versículo inválido: ${verse}` }, { status: 400 });
     }
-    return NextResponse.json({ book, chapter: Number(chapter), verse: Number(verse), text });
+
+    if (requestedVerses.length === 1) {
+      const vNum = requestedVerses[0];
+      const text = chapterData.versos?.[String(vNum)];
+      if (!text) {
+        return NextResponse.json(
+          { error: `Versículo não encontrado: ${verse}` },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({ book, chapter: Number(chapter), verse: vNum, text });
+    }
+
+    const content: { verse: number; text: string }[] = [];
+    for (const v of requestedVerses) {
+      const t = chapterData.versos?.[String(v)];
+      if (t) {
+        content.push({ verse: v, text: t });
+      }
+    }
+
+    if (content.length === 0) {
+      return NextResponse.json({ error: `Nenhum versículo encontrado para: ${verse}` }, { status: 404 });
+    }
+
+    const text = content.map(c => c.text).join(' ');
+
+    return NextResponse.json({ 
+      book, 
+      chapter: Number(chapter), 
+      verses: content.map(c => c.verse), 
+      content, 
+      text 
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Falha ao carregar a Bíblia" }, { status: 500 });
