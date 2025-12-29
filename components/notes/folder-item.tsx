@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/compon
 import { Button } from "@/components/ui/button"
 import { MoreVertical, Pin, Folder as FolderIcon } from "lucide-react"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/components/ui/context-menu"
+import { useState } from "react"
 
 export interface FolderItemProps {
   id: string
@@ -21,6 +22,10 @@ export interface FolderItemProps {
   actionsMenu: React.ReactNode
   hasSelectionMode: boolean
   pinned?: boolean
+  draggable?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
 }
 
 export default function FolderItem({
@@ -36,8 +41,32 @@ export default function FolderItem({
   actionsMenu,
   hasSelectionMode,
   pinned,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDrop,
 }: FolderItemProps) {
   const isGrid = view === "grid"
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Verifica se não estamos arrastando a própria pasta
+    // (Pode ser melhorado checando ID, mas aqui é visual)
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    setIsDragOver(false);
+    onDrop?.(e);
+  };
 
   return (
     <motion.div
@@ -51,14 +80,24 @@ export default function FolderItem({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            draggable={draggable}
+            onDragStart={onDragStart}
+            onDragOver={(e) => {
+              onDragOver?.(e);
+              handleDragEnter(e);
+            }}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             className={cn(
-              "relative group rounded-lg border p-4 cursor-pointer hover:bg-secondary-foreground/30 hover:text-accent-foreground",
+              "relative group rounded-lg border p-4 cursor-pointer transition-all duration-200",
               selected ? "border-primary ring-1 ring-primary/20" : "border-border/60",
+              isDragOver ? "bg-primary/20 scale-105 border-primary ring-2 ring-primary shadow-lg z-10" : "hover:bg-secondary-foreground/30 hover:text-accent-foreground",
+              !isDragOver && "bg-secondary-foreground/20",
               // Grid: Compacto e centrado verticalmente se pouco conteúdo
               // List: Row padrão
               isGrid 
-                ? "bg-secondary-foreground/20 flex flex-row gap-3 h-auto min-h-[4rem] justify-center items-center" 
-                : "bg-secondary-foreground/20 flex items-center gap-4 h-16"
+                ? "flex flex-row gap-3 h-auto min-h-[4rem] justify-center items-center" 
+                : "flex items-center gap-4 h-16"
             )}
             onClick={(e) => {
               if (hasSelectionMode) {

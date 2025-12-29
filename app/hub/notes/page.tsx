@@ -23,6 +23,7 @@ import {
   X,
   Move,
   Download,
+  Tag,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -42,7 +43,6 @@ import {
   ContextMenuSubContent,
 } from "@/components/ui/context-menu";
 import { createNotesPageActions } from "@/lib/notes-page-actions";
-import FolderBreadcrumbs from "@/components/notes/folder-breadcrumbs";
 import TagEditorDialog from "@/components/notes/tag-editor-dialog";
 import MobileActionsSheet from "@/components/notes/mobile-actions-sheet";
  
@@ -51,6 +51,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/notes/confirm-dialog";
 import { NoteCard } from "@/components/notes/note-card";
 import FolderItem from "@/components/notes/folder-item";
+import { BackgroundContextMenu } from "@/components/notes/background-context-menu";
+import { NoteTagSelector } from "@/components/notes/note-tag-selector";
 
 export default function NotesPage() {
   return (
@@ -81,6 +83,8 @@ function NotesContent() {
 
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
+  const [editingTagsNoteId, setEditingTagsNoteId] = useState<string | null>(null);
+
   const [confirm, setConfirm] = useState<{
     open: boolean;
     title: string;
@@ -220,6 +224,34 @@ function NotesContent() {
   } = actions;
 
   const moveFolders = useMemo(() => folders.filter((f) => !f.archived && !f.trashed), [folders])
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, type: "note" | "folder", id: string) => {
+    e.dataTransfer.setData("type", type);
+    e.dataTransfer.setData("id", id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to background
+    const type = e.dataTransfer.getData("type");
+    const id = e.dataTransfer.getData("id");
+
+    if (!type || !id) return;
+    if (id === targetFolderId) return;
+
+    if (type === "note") {
+      handleMoveNote(id, targetFolderId);
+    } else if (type === "folder") {
+      handleMoveFolder(id, targetFolderId);
+    }
+  };
 
   // Menus Reutilizáveis
   const getMoveSubmenu = (onMove: (targetId: string | undefined) => void) => (
@@ -518,6 +550,10 @@ function NotesContent() {
         </AnimatePresence>
 
         {/* GRID DE CONTEÚDO */}
+        <BackgroundContextMenu
+          onNewNote={handleCreateNote}
+          onNewFolder={() => handleCreateFolder()}
+        >
         <AnimatePresence mode="popLayout">
           <div
             className={cn(
@@ -538,6 +574,10 @@ function NotesContent() {
                 onToggleSelect={toggleFolderSelected}
                 onClick={() => handleNavigateFolder(f.id)}
                 hasSelectionMode={hasSelection}
+                draggable
+                onDragStart={(e) => handleDragStart(e, "folder", f.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, f.id)}
                 actionsMenu={
                   <>
                     <DropdownMenuItem
@@ -638,8 +678,13 @@ function NotesContent() {
                 onClick={() => router.push(`/hub/notes/${n.id}`)}
                 onCheck={handleCheckItem}
                 hasSelectionMode={hasSelection}
+                draggable
+                onDragStart={(e) => handleDragStart(e, "note", n.id)}
                 actionsMenu={
                   <>
+                    <DropdownMenuItem onSelect={() => setEditingTagsNoteId(n.id)}>
+                      <Tag className="mr-2 h-4 w-4" /> Etiquetas
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => toggleNoteSelected(n.id)}>
                       {selectedNotes.includes(n.id)
                         ? "Desmarcar"
@@ -676,6 +721,9 @@ function NotesContent() {
                 }
                 contextMenu={
                   <>
+                    <ContextMenuItem onSelect={() => setEditingTagsNoteId(n.id)}>
+                      Etiquetas
+                    </ContextMenuItem>
                     <ContextMenuItem onSelect={() => toggleNoteSelected(n.id)}>
                       Selecionar
                     </ContextMenuItem>
@@ -727,7 +775,20 @@ function NotesContent() {
             </Button>
           </div>
         )}
+        </BackgroundContextMenu>
       </main>
+
+      {editingTagsNoteId && (
+        <NoteTagSelector
+          open={!!editingTagsNoteId}
+          onOpenChange={(open) => !open && setEditingTagsNoteId(null)}
+          noteId={editingTagsNoteId}
+          initialTagIds={
+            notes.find((n) => n.id === editingTagsNoteId)?.tagIds || []
+          }
+          allTags={tags}
+        />
+      )}
 
       {confirm && (
         <ConfirmDialog

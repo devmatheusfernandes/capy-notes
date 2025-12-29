@@ -26,6 +26,8 @@ interface NoteCardProps {
   contextMenu: React.ReactNode;
   actionsMenu: React.ReactNode;
   hasSelectionMode: boolean;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
 }
 
 export function NoteCard({
@@ -38,6 +40,8 @@ export function NoteCard({
   contextMenu,
   actionsMenu,
   hasSelectionMode,
+  draggable,
+  onDragStart,
 }: NoteCardProps) {
   // Extração de dados usando os helpers
   const coverImage = getCoverImage(note);
@@ -62,6 +66,8 @@ export function NoteCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            draggable={draggable}
+            onDragStart={onDragStart}
             onClick={(e) => {
               // Lógica de seleção vs navegação
               if (hasSelectionMode) {
