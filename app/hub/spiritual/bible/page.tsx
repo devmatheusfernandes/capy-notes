@@ -5,9 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {  ChevronLeft, Loader2, Search, X, BookOpenText } from "lucide-react";
+import {  ChevronLeft, Loader2, Search, X } from "lucide-react";
 import BibleReferenceSidebar from "@/components/bible/bible-reference-sidebar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Helper para parsear parâmetro de versículo da URL
 function parseVerseParam(param: string): number[] {

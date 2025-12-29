@@ -63,12 +63,8 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u))
-    return () => unsub()
-  }, [])
 
   const avatarIndex = useMemo(() => {
     if (!user?.uid) return 0;
@@ -109,6 +105,29 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
       [title]: !prev[title],
     }));
   };
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u)
+      setLoading(false)
+      if (!u) {
+        router.push("/")
+      }
+    })
+    return () => unsub()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center">
+        <Spinner />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <SidebarProvider>
