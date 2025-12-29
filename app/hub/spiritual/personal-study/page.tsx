@@ -9,9 +9,9 @@ import Bacapybara from "../../../../public/images/capy-images/bacapybara.png"
 // 1. Definimos os dados fora do componente para fácil manutenção
 const resources = [
   {
-    title: "Adoração Matinal",
-    description: "Leia ou importe textos e conteúdos diários para sua meditação.",
-    href: "/hub/spiritual/personal-study/morning-worship",
+    title: "Vídeos",
+    description: "Assista aos vídeos do JW Broadcasting e crie notas.",
+    href: "/hub/spiritual/personal-study/latest-videos",
     image: Capybaraship,
     icon: BookOpen,
     color: "bg-blue-500/10 text-blue-600", // Cor sutil para o ícone
