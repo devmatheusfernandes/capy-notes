@@ -1,20 +1,24 @@
 import { motion } from "framer-motion";
-import { CheckSquare, Square, MoreVertical, FileText } from "lucide-react";
+import { CheckSquare, Square, MoreVertical, FileText, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn, getChecklistItems, getCoverImage, getPreviewText } from "@/lib/utils";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuTrigger,
+  ContextMenuItem,
 } from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { NoteData, TagData } from "@/types";
+import { useState, useRef, useEffect } from "react";
 
 interface NoteCardProps {
   note: NoteData;
@@ -22,7 +26,8 @@ interface NoteCardProps {
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onClick: () => void;
-  onCheck: (noteId: string, itemIndex: number) => void; // Prop para interatividade
+  onCheck: (noteId: string, itemIndex: number) => void;
+  onRename?: (noteId: string, newTitle: string) => Promise<void>;
   contextMenu: React.ReactNode;
   actionsMenu: React.ReactNode;
   hasSelectionMode: boolean;
@@ -37,12 +42,52 @@ export function NoteCard({
   onToggleSelect,
   onClick,
   onCheck,
+  onRename,
   contextMenu,
   actionsMenu,
   hasSelectionMode,
   draggable,
   onDragStart,
 }: NoteCardProps) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newTitle, setNewTitle] = useState(note.title || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRenaming) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isRenaming]);
+
+  const handleRename = async () => {
+    if (!onRename || newTitle.trim() === note.title) {
+      setIsRenaming(false);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onRename(note.id, newTitle.trim());
+    } catch (error) {
+      console.error("Failed to rename note", error);
+      setNewTitle(note.title || "");
+    } finally {
+      setIsSaving(false);
+      setIsRenaming(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleRename();
+    } else if (e.key === "Escape") {
+      setIsRenaming(false);
+      setNewTitle(note.title || "");
+    }
+  };
+
   // Extração de dados usando os helpers
   const coverImage = getCoverImage(note);
   const checklist = getChecklistItems(note);
@@ -66,9 +111,10 @@ export function NoteCard({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            draggable={draggable}
+            draggable={draggable && !isRenaming}
             onDragStart={onDragStart}
             onClick={(e) => {
+              if (isRenaming) return;
               // Lógica de seleção vs navegação
               if (hasSelectionMode) {
                 e.preventDefault();
@@ -100,10 +146,28 @@ export function NoteCard({
 
             <div className="p-5 flex flex-col gap-3">
               {/* Título */}
-            <div className="font-bold text-lg leading-tight break-words flex items-center gap-2">
-              {note.title || <span className="text-muted-foreground italic font-normal">Sem título</span>}
-              {isPdf && <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5"><FileText className="w-3 h-3 mr-1" />PDF</Badge>}
-            </div>
+              <div className="font-bold text-lg leading-tight break-words flex items-center gap-2 min-h-[28px]">
+                {isRenaming ? (
+                  <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      ref={inputRef}
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      onBlur={handleRename}
+                      className="h-7 py-0 px-1 text-lg font-bold"
+                      disabled={isSaving}
+                      data-card-control="true"
+                    />
+                    {isSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  </div>
+                ) : (
+                  <>
+                    {note.title || <span className="text-muted-foreground italic font-normal">Sem título</span>}
+                    {isPdf && <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5"><FileText className="w-3 h-3 mr-1" />PDF</Badge>}
+                  </>
+                )}
+              </div>
 
             {/* 2. Conteúdo Dinâmico */}
               {hasChecklist ? (
@@ -206,6 +270,9 @@ export function NoteCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+                    Renomear
+                  </DropdownMenuItem>
                   {actionsMenu}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -214,7 +281,12 @@ export function NoteCard({
         </ContextMenuTrigger>
         
         {/* Menu de Contexto (Botão Direito) */}
-        <ContextMenuContent>{contextMenu}</ContextMenuContent>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={() => setIsRenaming(true)}>
+            Renomear
+          </ContextMenuItem>
+          {contextMenu}
+        </ContextMenuContent>
       </ContextMenu>
     </motion.div>
   );

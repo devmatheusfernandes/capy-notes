@@ -169,6 +169,11 @@ function NotesContent() {
     }
   };
 
+  const handleRename = async (noteId: string, newTitle: string) => {
+    if (!userId) return;
+    await updateNote(userId, noteId, { title: newTitle });
+  };
+
   const clearSelection = () => {
     setSelectedNotes([]);
     setSelectedFolders([]);
@@ -695,6 +700,7 @@ function NotesContent() {
                 onToggleSelect={toggleNoteSelected}
                 onClick={() => router.push(`/hub/notes/${n.id}`)}
                 onCheck={handleCheckItem}
+                onRename={handleRename}
                 hasSelectionMode={hasSelection}
                 draggable
                 onDragStart={(e) => handleDragStart(e, "note", n.id)}
