@@ -64,6 +64,7 @@ import { PinDialog } from "@/components/notes/pin-dialog";
 import { hasUserPin } from "@/lib/user-settings";
 import { toast } from "sonner";
 import { NoteData, FolderData } from "@/types";
+import { ExportToJwlDialog } from "@/components/notes/export-to-jwl-dialog";
 
 export default function NotesPage() {
   return (
@@ -96,6 +97,7 @@ function NotesContent() {
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [editingTagsNoteId, setEditingTagsNoteId] = useState<string | null>(null);
   const [isBatchTagEditorOpen, setIsBatchTagEditorOpen] = useState(false);
+  const [isExportJwlOpen, setIsExportJwlOpen] = useState(false);
 
   const [confirm, setConfirm] = useState<{
     open: boolean;
@@ -330,6 +332,11 @@ function NotesContent() {
     handleDeleteFolder,
     handleTogglePin,
   } = actions;
+
+  const bulkExportJwl = () => {
+    if (selectedNotes.length === 0) return;
+    setIsExportJwlOpen(true);
+  };
 
   const moveFolders = useMemo(() => folders.filter((f) => !f.archived && !f.trashed), [folders])
 
@@ -674,7 +681,10 @@ function NotesContent() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={bulkExport}>
-                        <Download className="mr-2 h-4 w-4" /> Exportar
+                        <Download className="mr-2 h-4 w-4" /> Exportar (JSON)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={bulkExportJwl}>
+                        <Download className="mr-2 h-4 w-4" /> Exportar (JWL)
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1098,6 +1108,14 @@ function NotesContent() {
           }}
         />
       )}
+
+      <ExportToJwlDialog
+        open={isExportJwlOpen}
+        onOpenChange={setIsExportJwlOpen}
+        selectedNotes={allNotes.filter(n => selectedNotes.includes(n.id))}
+        allTags={tags}
+        onSuccess={clearSelection}
+      />
     </div>
   );
 }

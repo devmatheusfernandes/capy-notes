@@ -126,32 +126,39 @@ export const useJwlEditor = () => {
     );
   };
 
-// --- 3. CRIAR NOTA (CORRIGIDO - SEM USERMARK) ---
+// --- 3. CRIAR NOTA (CORRIGIDO - COM USERMARK) ---
   const createNote = (title: string, content: string, colorIndex: number, tags: string[]) => {
     if (!sqlDb) return;
     const now = new Date().toISOString().replace("Z", "");
     const noteGuid = generateUUID();
-    // const userMarkGuid = generateUUID(); // Não usamos mais UserMark para notas soltas
+    const userMarkGuid = generateUUID();
 
     try {
       sqlDb.run("BEGIN TRANSACTION");
 
-      // OBS: Removemos a criação de UserMark aqui. 
-      // O banco exige um LocationId para criar um UserMark (Cor), 
-      // mas notas novas soltas não têm LocationId.
+      // 1. Criar UserMark (LocationId NULL é permitido pelo schema)
+      // Isso permite salvar a cor da nota
+      sqlDb.run(
+        `INSERT INTO UserMark (ColorIndex, LocationId, StyleIndex, UserMarkGuid, Version) 
+         VALUES (?, NULL, 0, ?, 1)`,
+        [colorIndex, userMarkGuid]
+      );
       
-      // 1. Criar Nota (UserMarkId e LocationId ficam como NULL)
+      const userMarkIdRes = sqlDb.exec("SELECT last_insert_rowid()");
+      const userMarkId = userMarkIdRes[0].values[0][0];
+
+      // 2. Criar Nota vinculada ao UserMark
       sqlDb.run(
         `INSERT INTO Note (Guid, UserMarkId, LocationId, Title, Content, LastModified, Created, BlockType) 
-         VALUES (?, NULL, NULL, ?, ?, ?, ?, 0)`,
-        [noteGuid, title || null, content, now, now]
+         VALUES (?, ?, NULL, ?, ?, ?, ?, 0)`,
+        [noteGuid, userMarkId, title || null, content, now, now]
       );
       
       // Pega o ID da nota criada
       const noteIdRes = sqlDb.exec("SELECT last_insert_rowid()");
       const noteId = noteIdRes[0].values[0][0];
 
-      // 2. Inserir Tags
+      // 3. Inserir Tags
       tags.map(t => t.trim()).filter(Boolean).forEach((cleanTag) => {
         let tagId;
         
@@ -194,8 +201,27 @@ export const useJwlEditor = () => {
       
       sqlDb.run("UPDATE Note SET Content = ?, Title = ?, LastModified = ? WHERE NoteId = ?", [content, title || null, now, id]);
       
-      // Atualiza cor
-      sqlDb.run("UPDATE UserMark SET ColorIndex = ? WHERE UserMarkId = (SELECT UserMarkId FROM Note WHERE NoteId = ?)", [colorIndex, id]);
+      // Verifica se existe UserMark
+      const userMarkRes = sqlDb.exec("SELECT UserMarkId FROM Note WHERE NoteId = ?", [id]);
+      const existingUserMarkId = userMarkRes.length > 0 && userMarkRes[0].values.length > 0 ? userMarkRes[0].values[0][0] : null;
+
+      if (existingUserMarkId) {
+        // Atualiza cor existente
+        sqlDb.run("UPDATE UserMark SET ColorIndex = ? WHERE UserMarkId = ?", [colorIndex, existingUserMarkId]);
+      } else {
+        // Cria novo UserMark para nota órfã (legado do bug anterior)
+        const userMarkGuid = generateUUID();
+        sqlDb.run(
+          `INSERT INTO UserMark (ColorIndex, LocationId, StyleIndex, UserMarkGuid, Version) 
+           VALUES (?, NULL, 0, ?, 1)`,
+          [colorIndex, userMarkGuid]
+        );
+        const newUserMarkIdRes = sqlDb.exec("SELECT last_insert_rowid()");
+        const newUserMarkId = newUserMarkIdRes[0].values[0][0];
+        
+        // Vincula à nota
+        sqlDb.run("UPDATE Note SET UserMarkId = ? WHERE NoteId = ?", [newUserMarkId, id]);
+      }
       
       // Remove vínculos antigos de tag desta nota
       sqlDb.run("DELETE FROM TagMap WHERE NoteId = ?", [id]);
@@ -353,6 +379,118 @@ export const useJwlEditor = () => {
     }
   };
 
+  // --- 9. CRIAR BACKUP VAZIO ---
+  const createEmptyBackup = async () => {
+    setIsLoading(true);
+    try {
+      const initSqlJs = (await import("sql.js")).default;
+      const SQL = await initSqlJs({ locateFile: (file) => `/${file}` });
+      const db = new SQL.Database();
+
+      // Cria Schema
+      db.run(`
+        CREATE TABLE Note (
+          NoteId INTEGER PRIMARY KEY AUTOINCREMENT,
+          Guid TEXT NOT NULL UNIQUE,
+          UserMarkId INTEGER,
+          LocationId INTEGER,
+          Title TEXT,
+          Content TEXT,
+          LastModified TEXT NOT NULL,
+          Created TEXT NOT NULL,
+          BlockType INTEGER DEFAULT 0,
+          BlockIdentifier INTEGER
+        );
+        CREATE TABLE Tag (
+          TagId INTEGER PRIMARY KEY AUTOINCREMENT,
+          Type INTEGER DEFAULT 1,
+          Name TEXT NOT NULL UNIQUE,
+          ImageFilename TEXT
+        );
+        CREATE TABLE TagMap (
+          TagMapId INTEGER PRIMARY KEY AUTOINCREMENT,
+          PlaylistItemId INTEGER,
+          LocationId INTEGER,
+          NoteId INTEGER,
+          TagId INTEGER NOT NULL,
+          Position INTEGER DEFAULT 0
+        );
+        CREATE TABLE UserMark (
+          UserMarkId INTEGER PRIMARY KEY AUTOINCREMENT,
+          ColorIndex INTEGER DEFAULT 0,
+          LocationId INTEGER,
+          StyleIndex INTEGER,
+          UserMarkGuid TEXT NOT NULL UNIQUE,
+          Version INTEGER DEFAULT 1
+        );
+        CREATE TABLE Location (
+          LocationId INTEGER PRIMARY KEY AUTOINCREMENT,
+          BookNumber INTEGER,
+          ChapterNumber INTEGER,
+          DocumentId INTEGER,
+          Track INTEGER,
+          IssueTagNumber INTEGER,
+          KeySymbol TEXT,
+          MepsLanguage INTEGER,
+          Type INTEGER,
+          Title TEXT
+        );
+        CREATE TABLE BlockRange (
+          BlockRangeId INTEGER PRIMARY KEY AUTOINCREMENT,
+          BlockType INTEGER DEFAULT 1,
+          Identifier INTEGER NOT NULL,
+          StartToken INTEGER,
+          EndToken INTEGER,
+          UserMarkId INTEGER NOT NULL
+        );
+        CREATE TABLE Bookmark (
+          BookmarkId INTEGER PRIMARY KEY AUTOINCREMENT,
+          LocationId INTEGER NOT NULL,
+          PublicationLocationId INTEGER,
+          Slot INTEGER,
+          Title TEXT,
+          Snippet TEXT,
+          BlockType INTEGER DEFAULT 0
+        );
+        CREATE TABLE LastModified (
+          LastModified TEXT NOT NULL
+        );
+        INSERT INTO LastModified VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));
+      `);
+
+      setSqlDb(db);
+      setNotes([]);
+      setAllTags([]);
+      
+      // Cria Manifesto
+      const newManifest = {
+        name: "CapyNotes Backup",
+        creationDate: new Date().toISOString().slice(0, 10),
+        version: 1,
+        type: 0,
+        userDataBackup: {
+          lastModifiedDate: new Date().toISOString(),
+          deviceName: "CapyNotes",
+          databaseName: "userData.db",
+          hash: "", // Será calculado no save
+          schemaVersion: 8
+        }
+      };
+      setManifest(newManifest);
+      
+      // Cria Zip inicial vazio
+      const zip = new JSZip();
+      zip.file("manifest.json", JSON.stringify(newManifest));
+      setOriginalZip(zip);
+
+    } catch (error) {
+      console.error("Erro ao criar backup vazio:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // --- 8. EXPORTAR ---
   const generateUpdatedBlob = async (): Promise<Blob | null> => {
     if (!sqlDb || !manifest || !originalZip) return null;
@@ -383,7 +521,7 @@ export const useJwlEditor = () => {
     loadFile, notes, allTags,
     createNote, updateNote, deleteNote, 
     renameTag, deleteTag,
-    mergeBackup, generateUpdatedBlob,
+    mergeBackup, generateUpdatedBlob, createEmptyBackup,
     isLoading, isMerging, hasLoaded: !!sqlDb
   };
 };

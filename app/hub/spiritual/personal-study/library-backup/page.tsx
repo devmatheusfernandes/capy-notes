@@ -49,7 +49,7 @@ export default function CloudBackupPage() {
   const { 
     loadFile, notes, allTags,
     createNote, updateNote, deleteNote, renameTag, deleteTag,
-    generateUpdatedBlob, mergeBackup,
+    generateUpdatedBlob, mergeBackup, createEmptyBackup,
     isMerging, hasLoaded 
   } = useJwlEditor();
   
@@ -101,6 +101,21 @@ export default function CloudBackupPage() {
     }
   };
 
+  const handleCreateNew = async () => {
+    try {
+      await createEmptyBackup();
+      setActiveBackup({
+        id: "new-temp",
+        name: "Novo Backup",
+        storagePath: "",
+        updatedAt: new Date().toISOString()
+      });
+      toast.success("Novo backup criado!");
+    } catch (e) {
+      toast.error("Erro ao criar backup.");
+    }
+  };
+
   const openEditor = async (backup: BackupMetadata) => {
     const toastId = toast.loading("Abrindo backup...");
     try {
@@ -120,8 +135,26 @@ export default function CloudBackupPage() {
     try {
       const newBlob = await generateUpdatedBlob();
       if (newBlob) {
-        await saveChanges(activeBackup.id, activeBackup.storagePath, newBlob);
-        toast.success("Salvo na nuvem!");
+        const result = await saveChanges(
+          activeBackup.id, 
+          activeBackup.storagePath, 
+          newBlob,
+          activeBackup.id === "new-temp" ? "meu_novo_backup.jwlibrary" : undefined
+        );
+        
+        if (result) {
+          // Se era um backup novo, atualiza o estado local com o ID real e path
+          if (activeBackup.id === "new-temp") {
+            setActiveBackup(prev => prev ? ({
+              ...prev,
+              id: result.id,
+              storagePath: result.storagePath,
+              name: "meu_novo_backup", // Atualiza nome visualmente também
+              updatedAt: new Date().toISOString()
+            }) : null);
+          }
+          toast.success("Salvo na nuvem!");
+        }
       }
     } catch { toast.error("Erro ao salvar."); }
     finally { setIsSavingCloud(false); }
@@ -783,14 +816,20 @@ export default function CloudBackupPage() {
             </h1>
             <p className="text-muted-foreground text-sm mt-1">Gerencie e edite seus arquivos .jwlibrary</p>
           </div>
-          <label className="group relative cursor-pointer">
-             <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-30 group-hover:opacity-100 transition duration-200"></div>
-             <div className="relative flex items-center gap-2 px-6 py-2.5 bg-foreground text-background rounded-lg font-medium hover:bg-zinc-800 transition-colors">
-               <Plus className="h-4 w-4" /> 
-               <span>Importar Novo</span>
-             </div>
-             <input type="file" className="hidden" accept=".jwlibrary" onChange={handleImport} />
-          </label>
+          <div className="flex gap-2">
+            <button onClick={handleCreateNew} className="relative flex items-center gap-2 px-6 py-2.5 bg-foreground text-background rounded-lg font-medium hover:bg-zinc-800 transition-colors">
+              <Plus className="h-4 w-4" />
+              <span>Criar Novo</span>
+            </button>
+            <label className="group relative cursor-pointer">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg blur opacity-30 group-hover:opacity-100 transition duration-200"></div>
+              <div className="relative flex items-center gap-2 px-6 py-2.5 bg-foreground text-background rounded-lg font-medium hover:bg-zinc-800 transition-colors">
+                <Download className="h-4 w-4" /> 
+                <span>Importar</span>
+              </div>
+              <input type="file" className="hidden" accept=".jwlibrary" onChange={handleImport} />
+            </label>
+          </div>
         </div>
 
         {/* Lista de Cards */}

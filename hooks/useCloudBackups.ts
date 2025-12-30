@@ -70,27 +70,52 @@ export const useCloudBackups = () => {
     }
   };
 
-  // 3. Salvar Alterações (Sobrescrever)
-  const saveChanges = async (backupId: string, storagePath: string, newBlob: Blob) => {
+  // 3. Salvar Alterações (Sobrescrever ou Criar Novo)
+  const saveChanges = async (backupId: string, storagePath: string, newBlob: Blob, newName: string = "backup_novo.jwlibrary") => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) return null;
 
     try {
-      // A. Sobrescreve o arquivo no Storage
-      const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, newBlob);
+      let finalStoragePath = storagePath;
+      let finalBackupId = backupId;
 
-      // B. Atualiza a data no Firestore
-      const backupRef = doc(db, "users", user.uid, "backups", backupId);
-      await updateDoc(backupRef, {
-        updatedAt: new Date().toISOString()
-      });
+      // Se for um backup novo (sem path ou ID temporário)
+      if (!finalStoragePath || backupId === "new-temp") {
+        const fileName = `${Date.now()}_${newName}`;
+        finalStoragePath = `users/${user.uid}/backups/${fileName}`;
+        
+        // Upload
+        const storageRef = ref(storage, finalStoragePath);
+        await uploadBytes(storageRef, newBlob);
+
+        // Criar no Firestore
+        const docRef = await addDoc(collection(db, "users", user.uid, "backups"), {
+          name: newName.replace(".jwlibrary", ""),
+          updatedAt: new Date().toISOString(),
+          storagePath: finalStoragePath
+        });
+        
+        finalBackupId = docRef.id;
+        toast.success("Novo backup criado na nuvem!");
+      } else {
+        // Atualização de backup existente
+        const storageRef = ref(storage, finalStoragePath);
+        await uploadBytes(storageRef, newBlob);
+
+        const backupRef = doc(db, "users", user.uid, "backups", finalBackupId);
+        await updateDoc(backupRef, {
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Backup atualizado com sucesso");
+      }
       
       await fetchBackups();
-      toast.success("Backup salvo na nuvem com sucesso");
+      return { id: finalBackupId, storagePath: finalStoragePath };
+
     } catch (error) {
       console.error("Erro ao salvar alterações:", error);
       toast.error("Erro ao persistir dados");
+      return null;
     }
   };
 
