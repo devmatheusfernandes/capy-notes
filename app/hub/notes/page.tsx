@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   ArchiveRestore,
   PinOff,
+  FolderOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -608,27 +609,41 @@ function NotesContent() {
                 onDrop={(e) => handleDrop(e, f.id)}
                 actionsMenu={
                   <>
-                    <DropdownMenuItem
-                      onSelect={() => toggleFolderSelected(f.id)}
-                    >
-                      {selectedFolders.includes(f.id)
-                        ? "Desmarcar"
-                        : "Selecionar"}
+                    <DropdownMenuItem onSelect={() => toggleFolderSelected(f.id)}>
+                      {selectedFolders.includes(f.id) ? (
+                        <>
+                          <X className="mr-2 h-4 w-4" /> Desmarcar
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Selecionar
+                        </>
+                      )}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={() => handleArchiveFolder(f.id, !!f.archived)}
                     >
-                      {f.archived ? "Desarquivar" : "Arquivar"}
+                      {f.archived ? (
+                        <>
+                          <ArchiveRestore className="mr-2 h-4 w-4" />{" "}
+                          Desarquivar
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-2 h-4 w-4" /> Arquivar
+                        </>
+                      )}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => handleNavigateFolder(f.id)}>
-                      Abrir
+                      <FolderOpen className="mr-2 h-4 w-4" /> Abrir
                     </DropdownMenuItem>
+                    {getMoveSubmenu((target) => handleMoveFolder(f.id, target))}
                     <DropdownMenuSeparator />
                     <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="text-red-600">
-                        Excluir
+                      <DropdownMenuSubTrigger className="text-destructive! hover:bg-destructive/20! hover:text-destructive!">
+                        <Trash2 className="mr-2 h-4 w-4 text-destructive" /> Excluir
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent>
                         <DropdownMenuItem
@@ -640,7 +655,7 @@ function NotesContent() {
                             })
                           }
                         >
-                          Só a pasta
+                          <Folder className="mr-2 h-4 w-4" /> Só a pasta
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={() =>
@@ -651,42 +666,59 @@ function NotesContent() {
                             })
                           }
                         >
-                          Pasta e conteúdo
+                          <Trash2 className="mr-2 h-4 w-4" /> Pasta e conteúdo
                         </DropdownMenuItem>
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
-                    {getMoveSubmenu((target) => handleMoveFolder(f.id, target))}
                   </>
                 }
                 contextMenu={
                   <>
-                    <ContextMenuItem
-                      onSelect={() => toggleFolderSelected(f.id)}
-                    >
-                      Selecionar
+                    <ContextMenuItem onSelect={() => toggleFolderSelected(f.id)}>
+                      {selectedFolders.includes(f.id) ? (
+                        <>
+                          <X className="mr-2 h-4 w-4" /> Desmarcar
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Selecionar
+                        </>
+                      )}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       onSelect={() => handleArchiveFolder(f.id, !!f.archived)}
                     >
-                      {f.archived ? "Desarquivar" : "Arquivar"}
+                      {f.archived ? (
+                        <>
+                          <ArchiveRestore className="mr-2 h-4 w-4" />{" "}
+                          Desarquivar
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-2 h-4 w-4" /> Arquivar
+                        </>
+                      )}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => handleNavigateFolder(f.id)}>
-                      Abrir
+                      <FolderOpen className="mr-2 h-4 w-4" /> Abrir
                     </ContextMenuItem>
+                    <ContextMenuSeparator />
                     <ContextMenuSub>
-                      <ContextMenuSubTrigger>Excluir</ContextMenuSubTrigger>
+                      <ContextMenuSubTrigger>
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                      </ContextMenuSubTrigger>
                       <ContextMenuSubContent>
                         <ContextMenuItem
                           onSelect={() => handleDeleteFolder(f.id, "keep")}
                         >
-                          Só a pasta
+                          <Folder className="mr-2 h-4 w-4" /> Só a pasta
                         </ContextMenuItem>
                         <ContextMenuItem
                           onSelect={() => handleDeleteFolder(f.id, "delete")}
                         >
-                          Pasta e conteúdo
+                          <Trash2 className="mr-2 h-4 w-4" /> Pasta e conteúdo
                         </ContextMenuItem>
                       </ContextMenuSubContent>
                     </ContextMenuSub>
@@ -758,7 +790,7 @@ function NotesContent() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-red-600"
+                      className="text-destructive! hover:bg-destructive/20! hover:text-destructive!"
                       onSelect={() =>
                         setConfirm({
                           open: true,
@@ -767,7 +799,7 @@ function NotesContent() {
                         })
                       }
                     >
-                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                      <Trash2 className="mr-2 h-4 w-4 text-destructive" /> Excluir
                     </DropdownMenuItem>
                   </>
                 }
