@@ -112,7 +112,7 @@ export default function LatestVideosPage() {
         const groups = await getAllVideosGrouped()
         setCategories(groups)
         // Default to all selected
-        setSelectedCategories(Object.keys(CATEGORY_NAMES))
+        setSelectedCategories(groups.map(g => g.key))
       } catch (err) {
         console.error(err)
       } finally {
@@ -354,22 +354,28 @@ export default function LatestVideosPage() {
                     >
                         Todos
                     </Badge>
-                    {categories.map((group) => {
-                        const isSelected = !isAllCategoriesSelected && selectedCategories.includes(group.key)
-                        return (
-                            <Badge 
-                                key={group.key}
-                                variant={isSelected ? "default" : "secondary"}
-                                className={cn(
-                                    "cursor-pointer text-xs sm:text-sm px-3 py-1 h-7 rounded-full transition-all select-none font-normal",
-                                    !isSelected && "bg-transparent hover:bg-muted border border-transparent text-muted-foreground"
-                                )}
-                                onClick={() => toggleCategory(group.key)}
-                            >
-                                {group.title}
-                            </Badge>
-                        )
-                    })}
+                    {loading ? (
+                        Array.from({ length: 12 }).map((_, i) => (
+                            <Skeleton key={i} className="h-7 w-24 rounded-full" />
+                        ))
+                    ) : (
+                        categories.map((group) => {
+                            const isSelected = !isAllCategoriesSelected && selectedCategories.includes(group.key)
+                            return (
+                                <Badge 
+                                    key={group.key}
+                                    variant={isSelected ? "default" : "secondary"}
+                                    className={cn(
+                                        "cursor-pointer text-xs sm:text-sm px-3 py-1 h-7 rounded-full transition-all select-none font-normal",
+                                        !isSelected && "bg-transparent hover:bg-muted border border-transparent text-muted-foreground"
+                                    )}
+                                    onClick={() => toggleCategory(group.key)}
+                                >
+                                    {group.title}
+                                </Badge>
+                            )
+                        })
+                    )}
                 </div>
                 <ScrollBar orientation="horizontal" className="invisible sm:visible" />
              </ScrollArea>
@@ -388,7 +394,13 @@ export default function LatestVideosPage() {
 
         {/* Content Grid */}
         <div className="min-h-[500px]">
-          {showResults ? (
+          {loading ? (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                 {[...Array(8)].map((_, i) => (
+                   <Skeleton key={i} className="h-64 sm:h-56 w-full rounded-xl" />
+                 ))}
+              </div>
+          ) : showResults ? (
             <motion.div
               layout
               className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -471,23 +483,18 @@ export default function LatestVideosPage() {
           ) : (
             /* Category Browser (Default View) */
             <div className="space-y-8">
-                {loading ? (
-                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                        {[1, 2, 3].map(i => <Skeleton key={i} className="h-56 w-full rounded-xl" />)}
-                    </div>
-                ) : (
-                    <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                    >
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                >
                         {categories.map((cat) => (
                         <Card 
                             key={cat.key} 
                             className="h-56 relative overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all cursor-pointer group rounded-xl"
                             onClick={() => router.push(`/hub/spiritual/personal-study/latest-videos/${cat.key}`)}
                         >
-                            {/* Background Image */}
+                            Background Image
                             {cat.videos[0]?.coverImage ? (
                                 <img 
                                     src={cat.videos[0].coverImage} 
@@ -517,7 +524,6 @@ export default function LatestVideosPage() {
                         </Card>
                         ))}
                     </motion.div>
-                )}
             </div>
           )}
         </div>
