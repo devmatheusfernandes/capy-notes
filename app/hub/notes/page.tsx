@@ -24,6 +24,9 @@ import {
   Move,
   Download,
   Tag,
+  CheckCircle2,
+  ArchiveRestore,
+  PinOff,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -290,7 +293,9 @@ function NotesContent() {
     onMove: (targetId: string | undefined) => void
   ) => (
     <ContextMenuSub>
-      <ContextMenuSubTrigger>Mover para</ContextMenuSubTrigger>
+      <ContextMenuSubTrigger>
+        <Move className="mr-2 h-4 w-4" /> Mover para
+      </ContextMenuSubTrigger>
       <ContextMenuSubContent className="max-h-[300px] overflow-y-auto">
         <ContextMenuItem onSelect={() => onMove(undefined)}>
           Início
@@ -710,23 +715,46 @@ function NotesContent() {
                       <Tag className="mr-2 h-4 w-4" /> Etiquetas
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => toggleNoteSelected(n.id)}>
-                      {selectedNotes.includes(n.id)
-                        ? "Desmarcar"
-                        : "Selecionar"}
+                      {selectedNotes.includes(n.id) ? (
+                        <>
+                          <X className="mr-2 h-4 w-4" /> Desmarcar
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Selecionar
+                        </>
+                      )}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={() => handleArchiveNote(n.id, !!n.archived)}
                     >
-                      {n.archived ? "Desarquivar" : "Arquivar"}
+                      {n.archived ? (
+                        <>
+                          <ArchiveRestore className="mr-2 h-4 w-4" />{" "}
+                          Desarquivar
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-2 h-4 w-4" /> Arquivar
+                        </>
+                      )}
                     </DropdownMenuItem>
                     {getMoveSubmenu((target) => handleMoveNote(n.id, target))}
                     <DropdownMenuItem
                       onSelect={() => handleTogglePin(n.id, !!n.pinned)}
                     >
-                      {n.pinned ? "Desafixar" : "Fixar"}
+                      {n.pinned ? (
+                        <>
+                          <PinOff className="mr-2 h-4 w-4" /> Desafixar
+                        </>
+                      ) : (
+                        <>
+                          <Pin className="mr-2 h-4 w-4" /> Fixar
+                        </>
+                      )}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => handleExportNote(n.id)}>
-                      Exportar
+                      <Download className="mr-2 h-4 w-4" /> Exportar
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -739,23 +767,40 @@ function NotesContent() {
                         })
                       }
                     >
-                      Excluir
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
                     </DropdownMenuItem>
                   </>
                 }
                 contextMenu={
                   <>
                     <ContextMenuItem onSelect={() => setEditingTagsNoteId(n.id)}>
-                      Etiquetas
+                      <Tag className="mr-2 h-4 w-4" /> Etiquetas
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={() => toggleNoteSelected(n.id)}>
-                      Selecionar
+                      {selectedNotes.includes(n.id) ? (
+                        <>
+                          <X className="mr-2 h-4 w-4" /> Desmarcar
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> Selecionar
+                        </>
+                      )}
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       onSelect={() => handleArchiveNote(n.id, !!n.archived)}
                     >
-                      {n.archived ? "Desarquivar" : "Arquivar"}
+                      {n.archived ? (
+                        <>
+                          <ArchiveRestore className="mr-2 h-4 w-4" />{" "}
+                          Desarquivar
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="mr-2 h-4 w-4" /> Arquivar
+                        </>
+                      )}
                     </ContextMenuItem>
                     {getContextMenuMoveSubmenu((target) =>
                       handleMoveNote(n.id, target)
@@ -763,10 +808,18 @@ function NotesContent() {
                     <ContextMenuItem
                       onSelect={() => handleTogglePin(n.id, !!n.pinned)}
                     >
-                      {n.pinned ? "Desafixar" : "Fixar"}
+                      {n.pinned ? (
+                        <>
+                          <PinOff className="mr-2 h-4 w-4" /> Desafixar
+                        </>
+                      ) : (
+                        <>
+                          <Pin className="mr-2 h-4 w-4" /> Fixar
+                        </>
+                      )}
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={() => handleExportNote(n.id)}>
-                      Exportar
+                      <Download className="mr-2 h-4 w-4" /> Exportar
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
@@ -779,7 +832,7 @@ function NotesContent() {
                         })
                       }
                     >
-                      Excluir
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
                     </ContextMenuItem>
                   </>
                 }
