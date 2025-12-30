@@ -45,7 +45,7 @@ export default function CommentsSidebar({
   open,
   onOpenChange,
   title = "Comentários",
-  desktopWidth = "22%", // Levemente mais largo para respirar melhor
+  desktopWidth = "26%", // Levemente mais largo para respirar melhor
   hasPendingComment,
   newCommentText,
   onChangePendingText,

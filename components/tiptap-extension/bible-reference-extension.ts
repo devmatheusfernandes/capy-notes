@@ -23,11 +23,11 @@ export const BibleReferenceExtension = Extension.create({
           newState.doc.descendants((node, pos) => {
             if (!node.isText || !node.text) return
 
-            // Se já tem link, ignorar para não duplicar/quebrar
-            const hasLink = node.marks.some(m => m.type.name === 'link')
-            if (hasLink) return
-
             const text = node.text
+            // Reset regex state for each node
+            regex.lastIndex = 0
+
+            const validRanges: { from: number; to: number }[] = []
             let match
 
             while ((match = regex.exec(text)) !== null) {
@@ -53,16 +53,60 @@ export const BibleReferenceExtension = Extension.create({
               if (isValidBibleRef) {
                 const from = pos + match.index
                 const to = from + fullMatch.length
+                validRanges.push({ from, to })
+              }
+            }
+
+            // Check for existing links
+            const bibleLinkMark = node.marks.find(m => m.type.name === 'link' && m.attrs.href === '#bible')
+            const otherLinkMark = node.marks.find(m => m.type.name === 'link' && m.attrs.href !== '#bible')
+
+            // If there's a user link, ignore this node (don't mess with user links)
+            if (otherLinkMark) return
+
+            if (bibleLinkMark) {
+              // Check if the current node is EXACTLY one of the valid ranges (and only one)
+              // Since text nodes are often split by marks, a fully linked node should match exactly one valid range 
+              // that covers the entire node text.
+              
+              const nodeStart = pos
+              const nodeEnd = pos + node.nodeSize
+              
+              const isFullyCovered = validRanges.length === 1 && 
+                                     validRanges[0].from === nodeStart && 
+                                     validRanges[0].to === nodeEnd
+
+              if (!isFullyCovered) {
+                // The link is incorrect (covers too much, or invalid text). 
+                // Remove it from the whole node.
+                tr.removeMark(nodeStart, nodeEnd, newState.schema.marks.link)
                 
-                // Adiciona o mark de Link com #bible
-                tr.addMark(
-                  from,
-                  to,
-                  newState.schema.marks.link.create({ 
-                    href: '#bible',
-                    class: 'bible-ref-link text-blue-600 underline decoration-dotted cursor-pointer' // Estilização opcional
-                  })
-                )
+                // Re-add correct links
+                validRanges.forEach(range => {
+                   tr.addMark(
+                    range.from,
+                    range.to,
+                    newState.schema.marks.link.create({ 
+                      href: '#bible',
+                      class: 'bible-ref-link text-blue-600 underline decoration-dotted cursor-pointer'
+                    })
+                  )
+                })
+                modified = true
+              }
+            } else {
+              // No bible link, but maybe we should add one?
+              if (validRanges.length > 0) {
+                 validRanges.forEach(range => {
+                   tr.addMark(
+                    range.from,
+                    range.to,
+                    newState.schema.marks.link.create({ 
+                      href: '#bible',
+                      class: 'bible-ref-link text-blue-600 underline decoration-dotted cursor-pointer'
+                    })
+                  )
+                })
                 modified = true
               }
             }

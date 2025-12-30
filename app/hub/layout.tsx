@@ -17,8 +17,26 @@ import {
   LogOut,
   Upload,
   BookOpenText,
+  ChevronsUpDown,
+  Sparkles,
+  Sun,
+  Moon,
+  Laptop,
 } from "lucide-react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "next-themes";
 import {
   SidebarMenuSub,
   SidebarMenuSubItem,
@@ -65,6 +83,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { setTheme } = useTheme();
 
   const avatarIndex = useMemo(() => {
     if (!user?.uid) return 0;
@@ -140,7 +159,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
                   <SidebarMenuButton size="lg" asChild>
                     <Link href="/hub">
                       <Image
-                        className="flex aspect-square size-8 items-center justify-center rounded-lg"
+                        className="flex aspect-square size-12 items-center justify-center rounded-lg"
                         src={CapyIcon}
                         alt="Logo"
                         width={32}
@@ -152,7 +171,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
                         <span className="truncate font-semibold">
                           CapyNotes
                         </span>
-                        <span className="truncate text-xs">Hub</span>
+                        <span className="truncate text-xs">Seu dashboard</span>
                       </div>
                     </Link>
                   </SidebarMenuButton>
@@ -162,7 +181,6 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
 
             <SidebarContent>
               <SidebarGroup>
-                <SidebarGroupLabel>Navegação</SidebarGroupLabel>
                 <SidebarMenu>
                   {hubNav.map((item) => {
                     const hasChildren = !!item.children?.length;
@@ -244,49 +262,95 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
             <SidebarFooter>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                  >
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted text-sidebar-foreground overflow-hidden">
-                      <Image
-                        src={avatarSrc}
-                        alt={user?.displayName || "Avatar"}
-                        width={32}
-                        height={32}
-                        className="rounded-lg h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">
-                        {user?.displayName || "Minha Conta"}
-                      </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {user?.email || "usuario@exemplo.com"}
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <div className="flex items-center gap-2 mt-2 px-1">
-                    <div className="shrink-0">
-                      <ModeToggle />
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="flex-1 justify-start gap-2 h-9 border-sidebar-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-colors overflow-hidden group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
-                      onClick={async () => {
-                        setIsLoggingOut(true);
-                        await signOut(auth);
-                        router.push("/");
-                      }}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        size="lg"
+                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                      >
+                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted text-sidebar-foreground overflow-hidden">
+                          <Image
+                            src={avatarSrc}
+                            alt={user?.displayName || "Avatar"}
+                            width={32}
+                            height={32}
+                            className="rounded-lg h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                          <span className="truncate font-semibold">
+                            {user?.displayName || "Minha Conta"}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {user?.email || "usuario@exemplo.com"}
+                          </span>
+                        </div>
+                        <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                      side="bottom"
+                      align="end"
+                      sideOffset={4}
                     >
-                      <LogOut className="size-4 shrink-0" />
-                      <span className="group-data-[collapsible=icon]:hidden truncate">
+                      <DropdownMenuLabel className="p-0 font-normal">
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted text-sidebar-foreground overflow-hidden">
+                            <Image
+                              src={avatarSrc}
+                              alt={user?.displayName || "Avatar"}
+                              width={32}
+                              height={32}
+                              className="rounded-lg h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">
+                              {user?.displayName || "Minha Conta"}
+                            </span>
+                            <span className="truncate text-xs text-muted-foreground">
+                              {user?.email || "usuario@exemplo.com"}
+                            </span>
+                          </div>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <Sparkles className="mr-2 size-4" />
+                            Tema
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => setTheme("light")}>
+                              <Sun className="mr-2 size-4" />
+                              Claro
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTheme("dark")}>
+                              <Moon className="mr-2 size-4" />
+                              Escuro
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTheme("system")}>
+                              <Laptop className="mr-2 size-4" />
+                              Sistema
+                            </DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          setIsLoggingOut(true);
+                          await signOut(auth);
+                          router.push("/");
+                        }}
+                      >
+                        <LogOut className="mr-2 size-4" />
                         Sair
-                      </span>
-                    </Button>
-                  </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>
@@ -580,7 +644,14 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
           >
             <ChevronLeft className="w-4 h-4" />
             <span className="font-medium">
-              {bibleView === "chapters" ? "Voltar ao Sumário" : bookParam}
+              {bibleView === "chapters" ? (
+                <>
+                  <span className="hidden sm:inline">Voltar ao Sumário</span>
+                  <span className="sm:hidden">Voltar</span>
+                </>
+              ) : (
+                bookParam
+              )}
             </span>
           </Button>
         )}
@@ -589,7 +660,7 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
         )}
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2">
+      <div className="md:absolute md:left-1/2 md:-translate-x-1/2 max-w-[140px] md:max-w-none">
         <Select 
           value={versionParam} 
           onValueChange={(val) => {

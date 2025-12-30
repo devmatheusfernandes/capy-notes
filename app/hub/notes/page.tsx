@@ -417,7 +417,7 @@ function NotesContent() {
               exit={{ y: 50, opacity: 0 }}
               className="fixed inset-x-4 bottom-4 md:sticky md:top-4 md:bottom-auto z-50 flex justify-center"
             >
-              <div className="bg-foreground text-background dark:bg-zinc-800 dark:text-zinc-100 rounded-xl shadow-2xl border px-4 py-2 flex items-center gap-2 md:gap-4 max-w-full overflow-x-auto">
+              <div className="bg-primary-foreground text-foreground dark:bg-zinc-800 rounded-xl shadow-2xl border px-4 py-2 flex items-center gap-2 md:gap-4 max-w-full overflow-x-auto">
                 <div className="flex items-center gap-2 border-r border-white/20 pr-4 mr-2">
                   <span className="font-bold text-sm whitespace-nowrap">
                     {selectedNotes.length + selectedFolders.length}{" "}

@@ -19,7 +19,7 @@ export default function UniversalSidebar({
   onOpenChange, 
   children, 
   // Valor padrão pode ser mantido ou alterado, mas será sobrescrito no uso
-  desktopWidth = "10%", 
+  desktopWidth = "25%", 
   title = "Painel" 
 }: UniversalSidebarProps) {
   const isMobile = useIsBreakpoint()

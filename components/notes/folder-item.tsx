@@ -91,8 +91,8 @@ export default function FolderItem({
             className={cn(
               "relative group rounded-lg border p-4 cursor-pointer transition-all duration-200",
               selected ? "border-primary ring-1 ring-primary/20" : "border-border/60",
-              isDragOver ? "bg-primary/20 scale-105 border-primary ring-2 ring-primary shadow-lg z-10" : "hover:bg-secondary-foreground/30 hover:text-accent-foreground",
-              !isDragOver && "bg-secondary-foreground/20",
+              isDragOver ? "bg-primary/20 scale-105 border-primary ring-2 ring-primary shadow-lg z-10" : "hover:bg-secondary-foreground/10 hover:text-accent-foreground",
+              !isDragOver && "bg-secondary-foreground/5",
               // Grid: Compacto e centrado verticalmente se pouco conteúdo
               // List: Row padrão
               isGrid 

@@ -94,12 +94,36 @@ import {
   deleteComment,
 } from "@/lib/comments";
 import type { CommentData } from "@/types";
-import { MessageSquarePlus, BookOpen, Tags, X, ChevronsUpDown } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import {
+  MessageSquarePlus,
+  BookOpen,
+  Tags,
+  X,
+  ChevronsUpDown,
+} from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandEmpty } from "@/components/ui/command";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandGroup,
+  CommandItem,
+  CommandEmpty,
+} from "@/components/ui/command";
 import { useTags } from "@/hooks/notes";
 import { updateNote } from "@/lib/notes";
 import CommentsSidebar from "@/components/tiptap-templates/simple/comments-sidebar";
@@ -119,11 +143,10 @@ const MainToolbarContent = ({
 }) => {
   return (
     <>
-      
       <Button aria-label="Go back" onClick={() => window.history.back()}>
         <ArrowLeftIcon className="tiptap-button-icon" />
       </Button>
-      
+
       <Spacer />
       <ToolbarGroup>
         <UndoRedoButton editor={editor} action="undo" />
@@ -133,7 +156,11 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <HeadingDropdownMenu editor={editor} levels={[1, 2, 3, 4]} portal={isMobile} />
+        <HeadingDropdownMenu
+          editor={editor}
+          levels={[1, 2, 3, 4]}
+          portal={isMobile}
+        />
         <ListDropdownMenu
           editor={editor}
           types={["bulletList", "orderedList", "taskList"]}
@@ -148,7 +175,6 @@ const MainToolbarContent = ({
       <ToolbarGroup>
         <MarkButton editor={editor} type="bold" />
         <MarkButton editor={editor} type="italic" />
-        <MarkButton editor={editor} type="strike" />
         <MarkButton editor={editor} type="code" />
         <MarkButton editor={editor} type="underline" />
         {!isMobile ? (
@@ -156,14 +182,11 @@ const MainToolbarContent = ({
         ) : (
           <ColorHighlightPopoverButton onClick={onHighlighterClick} />
         )}
-        {!isMobile ? <LinkPopover editor={editor} /> : <LinkButton onClick={onLinkClick} />}
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <MarkButton editor={editor} type="superscript" />
-        <MarkButton editor={editor} type="subscript" />
+        {!isMobile ? (
+          <LinkPopover editor={editor} />
+        ) : (
+          <LinkButton onClick={onLinkClick} />
+        )}
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -321,9 +344,15 @@ export function SimpleEditor({
           const range = getMarkRange($pos, linkType);
           if (range) {
             const m = $pos.marks().find((mk) => mk.type === linkType);
-            const href = (m?.attrs as Record<string, unknown>)?.["href"] as string | undefined;
+            const href = (m?.attrs as Record<string, unknown>)?.["href"] as
+              | string
+              | undefined;
             if (href && href.startsWith("#bible")) {
-              const tr = state.tr.setSelection(TextSelection.create(state.doc, range.from, range.to)).scrollIntoView();
+              const tr = state.tr
+                .setSelection(
+                  TextSelection.create(state.doc, range.from, range.to)
+                )
+                .scrollIntoView();
               view.dispatch(tr);
               const text = state.doc.textBetween(range.from, range.to, "\n");
               setSelectedBibleText(text);
@@ -504,7 +533,9 @@ export function SimpleEditor({
     setNewCommentText(text);
     if (!userId || !noteId) return;
     if (hasPendingComment && pendingCommentIdRef.current) {
-      await updateComment(userId, noteId, pendingCommentIdRef.current, { text });
+      await updateComment(userId, noteId, pendingCommentIdRef.current, {
+        text,
+      });
     }
   };
 
@@ -546,7 +577,11 @@ export function SimpleEditor({
       <aside
         className="min-h-screen transition-[width] duration-300 ease-in-out"
         style={{
-          width: isMobile ? "100%" : isCommentsOpen || isBibleOpen ? "80%" : "100%",
+          width: isMobile
+            ? "100%"
+            : isCommentsOpen || isBibleOpen
+            ? "74%"
+            : "100%",
         }}
       >
         <Toolbar
@@ -609,7 +644,10 @@ export function SimpleEditor({
             >
               <BookOpen className="tiptap-button-icon" />
             </Button>
-            <Button aria-label="Editar título e tags" onClick={() => setIsSettingsOpen(true)}>
+            <Button
+              aria-label="Editar título e tags"
+              onClick={() => setIsSettingsOpen(true)}
+            >
               <Tags className="tiptap-button-icon" />
             </Button>
           </ToolbarGroup>
@@ -624,7 +662,6 @@ export function SimpleEditor({
       <BibleSidebar
         open={isBibleOpen}
         onOpenChange={setIsBibleOpen}
-        desktopWidth="20%"
         title="Bíblia"
         editor={editor}
         selectedText={selectedBibleText}
@@ -647,23 +684,42 @@ export function SimpleEditor({
                 {selectedTagIds.map((tid) => {
                   const t = tags.find((x) => x.id === tid);
                   return (
-                    <Badge key={tid} variant="secondary" className="pl-2 pr-1 py-1">
+                    <Badge
+                      key={tid}
+                      variant="secondary"
+                      className="pl-2 pr-1 py-1"
+                    >
                       {t?.name ?? tid}
-                      <button onClick={() => setSelectedTagIds((prev) => prev.filter((x) => x !== tid))} className="ml-1 rounded-full p-0.5">
+                      <button
+                        onClick={() =>
+                          setSelectedTagIds((prev) =>
+                            prev.filter((x) => x !== tid)
+                          )
+                        }
+                        className="ml-1 rounded-full p-0.5"
+                      >
                         <X className="h-3 w-3" />
                       </button>
                     </Badge>
                   );
                 })}
               </div>
-              <Popover open={isTagComboboxOpen} onOpenChange={setIsTagComboboxOpen}>
+              <Popover
+                open={isTagComboboxOpen}
+                onOpenChange={setIsTagComboboxOpen}
+              >
                 <PopoverTrigger asChild>
-                  <Button role="combobox" aria-expanded={isTagComboboxOpen} className="w-full justify-between" data-style="outline">
+                  <Button
+                    role="combobox"
+                    aria-expanded={isTagComboboxOpen}
+                    className="w-full justify-between"
+                    data-style="outline"
+                  >
                     Selecionar tags
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="start">
+                <PopoverContent className="min-w-max p-0" align="center">
                   <Command>
                     <CommandInput placeholder="Buscar tag" />
                     <CommandList>
@@ -674,7 +730,11 @@ export function SimpleEditor({
                             key={t.id}
                             value={t.name}
                             onSelect={() => {
-                              setSelectedTagIds((prev) => (prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]));
+                              setSelectedTagIds((prev) =>
+                                prev.includes(t.id)
+                                  ? prev.filter((x) => x !== t.id)
+                                  : [...prev, t.id]
+                              );
                               setIsTagComboboxOpen(false);
                             }}
                           >
@@ -695,7 +755,10 @@ export function SimpleEditor({
             <Button
               onClick={async () => {
                 if (!userId || !noteId) return;
-                await updateNote(userId, noteId, { title: titleInput.trim(), tagIds: selectedTagIds });
+                await updateNote(userId, noteId, {
+                  title: titleInput.trim(),
+                  tagIds: selectedTagIds,
+                });
                 setIsSettingsOpen(false);
               }}
             >
@@ -714,7 +777,6 @@ export function SimpleEditor({
             setHasPendingComment(false);
           }
         }}
-        desktopWidth="20%"
         title="Comentários"
         hasPendingComment={hasPendingComment}
         newCommentText={newCommentText}
