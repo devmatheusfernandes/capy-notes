@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { CheckSquare, Square, MoreVertical, FileText, Loader2 } from "lucide-react";
+import { CheckSquare, Square, MoreVertical, FileText, Loader2, SpellCheck } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,7 +271,7 @@ export function NoteCard({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuItem onClick={() => setIsRenaming(true)}>
-                    Renomear
+                    <SpellCheck className="mr-2 h-4 w-4" /> Renomear
                   </DropdownMenuItem>
                   {actionsMenu}
                 </DropdownMenuContent>
