@@ -177,11 +177,6 @@ function NotesContent() {
     setSelectedFolders(visibleFolders.map((f) => f.id));
   };
 
-  const folderPath = useMemo(
-    () => getFolderPath(folders, currentFolderId || ""),
-    [folders, currentFolderId]
-  );
-
   const actions = createNotesPageActions({
     userId: userId ?? undefined,
     currentFolderId,
@@ -314,7 +309,7 @@ function NotesContent() {
   );
 
   return (
-    <div className="grid grid-cols-12 gap-4 pb-20 md:pb-0 relative">
+    <div className="grid grid-cols-12 gap-4 pb-20 md:pb-0 relative p-4">
       {/* Mobile Header */}
       <div className="col-span-12 md:hidden space-y-3 sticky top-0 z-20 bg-background/95 backdrop-blur pb-2 border-b">
         <div className="flex items-center justify-between">

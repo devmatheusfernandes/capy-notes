@@ -5,7 +5,19 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Loader2, LayoutGrid, List, Search, Play, FileText, Check, X, ArrowLeft } from "lucide-react"
+import { 
+  Loader2, 
+  LayoutGrid, 
+  List as ListIcon, 
+  Search, 
+  Play, 
+  FileText, 
+  Check, 
+  X, 
+  ArrowLeft,
+  RefreshCw,
+  Clock
+} from "lucide-react"
 import { useCurrentUserId } from "@/hooks/notes"
 import { 
   getAllVideosGrouped, 
@@ -19,6 +31,7 @@ import { createNote, getNote } from "@/lib/notes"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 export default function CategoryVideosPage() {
   const router = useRouter()
@@ -45,19 +58,17 @@ export default function CategoryVideosPage() {
     ;(async () => {
       try {
         const groups = await getAllVideosGrouped()
-        const group = groups.find(g => g.key === categoryKey)
+        let group = groups.find(g => g.key === categoryKey)
+        
+        // Fallback decodificado
+        if (!group) {
+           const decoded = decodeURIComponent(categoryKey)
+           group = groups.find(g => g.key === decoded)
+        }
+
         if (group) {
           setCategoryTitle(group.title)
           setApiItems(group.videos)
-        } else {
-            // Fallback if category not found or encoded differently
-            // Maybe the key is URL encoded?
-            const decoded = decodeURIComponent(categoryKey)
-            const groupDecoded = groups.find(g => g.key === decoded)
-            if (groupDecoded) {
-                setCategoryTitle(groupDecoded.title)
-                setApiItems(groupDecoded.videos)
-            }
         }
       } catch {
         toast.error("Erro ao carregar vídeos")
@@ -93,9 +104,9 @@ export default function CategoryVideosPage() {
         const newCount = next.filter((it) => !prevIds.has(it.id)).length
         setApiItems(next)
         if (newCount > 0) {
-          toast.success(`Novos vídeos encontrados: ${newCount}`)
+          toast.success(`${newCount} novos vídeos encontrados!`)
         } else {
-          toast.info("Você já está atualizado")
+          toast.info("Tudo atualizado.")
         }
       }
     } finally {
@@ -142,10 +153,9 @@ export default function CategoryVideosPage() {
         return
       }
       await clearVideoNoteLink(userId, item.id)
-      toast.info("A nota vinculada não existe mais. Você pode importar novamente.")
+      toast.info("Nota não encontrada. Importe novamente.")
       return
     }
-    return
   }
 
   const handlePlay = (item: VideoData) => {
@@ -156,9 +166,10 @@ export default function CategoryVideosPage() {
     }
   }
 
-  // Componente de Vídeo Reutilizável
+  // --- Components ---
+
   const VideoPlayer = ({ item, autoPlay = false, onClose }: { item: VideoData, autoPlay?: boolean, onClose?: () => void }) => (
-    <div className="relative w-full h-full bg-black group">
+    <div className="relative w-full h-full bg-black group animate-in fade-in duration-300">
       <video 
         src={item.videoUrl} 
         className="w-full h-full object-contain" 
@@ -167,50 +178,40 @@ export default function CategoryVideosPage() {
         playsInline
       >
         {item.subtitlesUrl && <track kind="subtitles" src={item.subtitlesUrl} label="Português" default />}
-        Seu navegador não suporta este vídeo.
       </video>
       {onClose && (
         <Button 
-          variant="ghost" 
+          variant="secondary" 
           size="icon" 
-          className="absolute top-2 right-2 text-white bg-black/50 hover:bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-sm z-10"
           onClick={(e) => {
             e.stopPropagation()
             onClose()
           }}
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </Button>
       )}
     </div>
   )
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.05 } }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  }
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 relative">
+    <div className="min-h-screen bg-background pb-20">
+      {/* Modal Video Player */}
       <AnimatePresence>
         {modalVideo && (
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
             onClick={() => setModalVideo(null)}
           >
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-black w-full max-w-4xl aspect-video rounded-xl overflow-hidden shadow-2xl relative"
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-5xl aspect-video rounded-xl overflow-hidden shadow-2xl bg-black"
               onClick={(e) => e.stopPropagation()}
             >
               <VideoPlayer item={modalVideo} autoPlay onClose={() => setModalVideo(null)} />
@@ -219,234 +220,223 @@ export default function CategoryVideosPage() {
         )}
       </AnimatePresence>
 
-      {/* Header & Controls */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between sticky -top-4 z-40 bg-background/95 backdrop-blur py-2 -mx-4 px-4 sm:static sm:bg-transparent sm:p-0">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-1">
-              <Button variant="ghost" size="sm" className="-ml-2 h-8" onClick={() => router.back()}>
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-              </Button>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{categoryTitle || "Carregando..."}</h1>
-          <p className="text-sm text-muted-foreground hidden sm:block">
-            Assista aos vídeos, acompanhe novos lançamentos e crie notas.
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar título..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 bg-background/85 backdrop-blur-md border-b shadow-sm supports-[backdrop-filter]:bg-background/60">
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 space-y-3">
           
+          {/* Top Row: Back & Title */}
+          <div className="flex items-center gap-2">
+             <Button variant="ghost" size="icon" className="-ml-2 shrink-0" onClick={() => router.back()}>
+                 <ArrowLeft className="h-5 w-5" />
+             </Button>
+             <h1 className="text-lg font-semibold truncate leading-none">
+                {categoryTitle || <Skeleton className="h-5 w-32" />}
+             </h1>
+             {/* Desktop Update Button */}
+             <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleUpdate} 
+                disabled={loadingUpdate} 
+                className="hidden sm:flex ml-auto text-xs h-8 gap-2"
+             >
+                <RefreshCw className={cn("h-3.5 w-3.5", loadingUpdate && "animate-spin")} />
+                {loadingUpdate ? "Atualizando..." : "Verificar Novos"}
+             </Button>
+          </div>
+
+          {/* Bottom Row: Search & Controls */}
           <div className="flex gap-2">
-            <div className="bg-muted p-1 rounded-md flex items-center border">
-              <Button
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode("grid")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
+            <div className="relative flex-1">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+               <Input
+                 placeholder="Pesquisar vídeo..."
+                 className="pl-9 h-10 bg-muted/50 border-transparent focus:bg-background focus:border-input transition-all"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+               />
+            </div>
+            
+            <div className="bg-muted/50 p-1 rounded-md flex items-center border border-transparent">
+               <Button
+                 variant={viewMode === "grid" ? "secondary" : "ghost"}
+                 size="icon"
+                 className="h-8 w-8 rounded-sm"
+                 onClick={() => setViewMode("grid")}
+               >
+                 <LayoutGrid className="h-4 w-4" />
+               </Button>
+               <Button
+                 variant={viewMode === "list" ? "secondary" : "ghost"}
+                 size="icon"
+                 className="h-8 w-8 rounded-sm"
+                 onClick={() => setViewMode("list")}
+               >
+                 <ListIcon className="h-4 w-4" />
+               </Button>
             </div>
 
-            <Button onClick={handleUpdate} disabled={loadingUpdate} className="flex-1 sm:flex-none">
-              {loadingUpdate ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Atualizando
-                </>
-              ) : (
-                "Atualizar"
-              )}
-            </Button>
+            {/* Mobile Update Icon */}
+            <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleUpdate} 
+                disabled={loadingUpdate} 
+                className="sm:hidden h-10 w-10 shrink-0"
+             >
+                <RefreshCw className={cn("h-4 w-4", loadingUpdate && "animate-spin")} />
+             </Button>
           </div>
         </div>
       </div>
 
-      {/* Content Area */}
-      <motion.div
-        variants={containerVariants}
-        initial={false}
-        animate="show"
-        className={cn(
-          "grid gap-4",
-          viewMode === "grid" 
-            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
-            : "grid-cols-1"
-        )}
-      >
-        {initialLoading ? (
-          Array.from({ length: 8 }).map((_, idx) => (
-            <div
-              key={`skeleton-${idx}`}
-              className={cn(
-                "group relative overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm",
-                viewMode === "list" && "flex flex-row items-center gap-4 p-3 h-auto"
-              )}
-            >
-              <div
-                className={cn(
-                  "relative bg-muted overflow-hidden shrink-0",
-                  viewMode === "grid" ? "aspect-video w-full" : "h-20 w-32 rounded-lg"
-                )}
-              >
-                <Skeleton className="w-full h-full" />
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto p-4 sm:p-6">
+        <motion.div
+          layout
+          className={cn(
+            "grid gap-4",
+            viewMode === "grid" 
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+              : "grid-cols-1 max-w-3xl mx-auto"
+          )}
+        >
+          {initialLoading ? (
+            Array.from({ length: 8 }).map((_, idx) => (
+              <div key={idx} className={cn("rounded-xl overflow-hidden border bg-card", viewMode === "list" && "flex h-28")}>
+                 <Skeleton className={cn("bg-muted", viewMode === "grid" ? "aspect-video w-full" : "w-40 h-full shrink-0")} />
+                 <div className="p-4 space-y-2 flex-1">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                 </div>
               </div>
-              <div
-                className={cn(
-                  "flex flex-col flex-1",
-                  viewMode === "grid" ? "p-4 space-y-3" : "pr-2 gap-1"
-                )}
-              >
-                <Skeleton className={cn(viewMode === "list" ? "h-4 w-48" : "h-5 w-3/4")} />
-                <div
-                  className={cn(
-                    "flex items-center gap-2 mt-auto pt-2",
-                    viewMode === "list" && "pt-0"
-                  )}
-                >
-                  {viewMode === "list" && <Skeleton className="h-8 w-24" />}
-                  <Skeleton className={cn("h-8", viewMode === "grid" ? "w-full" : "w-24")} />
-                </div>
-              </div>
-            </div>
-          ))
-        ) : (
-        <>
-        <AnimatePresence mode="popLayout">
-          {filteredItems.map((item) => {
-            const saved = savedMap.get(item.id)
-            const importedAsNote = !!saved?.importedAsNote
-            const isPlayingInline = playingId === item.id && viewMode === "grid"
+            ))
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {filteredItems.map((item) => {
+                const saved = savedMap.get(item.id)
+                const importedAsNote = !!saved?.importedAsNote
+                const isPlayingInline = playingId === item.id && viewMode === "grid"
 
-            return (
-              <motion.div
-                layout
-                variants={itemVariants}
-                exit={{ opacity: 0, scale: 0.9 }}
-                key={item.id}
-                className={cn(
-                  "group relative overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-all",
-                  !isPlayingInline && "hover:shadow-md hover:border-primary/20",
-                  viewMode === "list" && "flex flex-col items-center gap-4 p-3 h-auto"
-                )}
-              >
-                {/* Área de Mídia (Capa ou Vídeo) */}
-                <div className={cn(
-                  "relative bg-muted overflow-hidden shrink-0",
-                  viewMode === "grid" ? "aspect-video w-full" : "h-20 w-32 rounded-lg"
-                )}>
-                  {isPlayingInline ? (
-                    <VideoPlayer item={item} autoPlay onClose={() => setPlayingId(null)} />
-                  ) : (
-                    <>
-                      {item.coverImage ? (
-                        <img 
-                          src={item.coverImage} 
-                          alt={item.title} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                          loading="lazy" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          <LayoutGrid className="h-8 w-8 opacity-20" />
-                        </div>
-                      )}
-                      
-                      {/* Botão de Play (Overlay) */}
-                      {item.videoUrl && (
-                        <div 
-                          className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors flex items-center justify-center cursor-pointer"
-                          onClick={() => handlePlay(item)}
-                        >
-                          <div className="bg-white/20 hover:bg-white/40 text-white rounded-full p-3 backdrop-blur-sm transition-all scale-90 group-hover:scale-100 shadow-lg">
-                            <Play className="h-6 w-6 fill-current pl-1" />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Duração */}
-                      {item.durationFormatted && (
-                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 rounded">
-                              {item.durationFormatted}
-                          </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Conteúdo do Texto e Ações */}
-                <div className={cn(
-                  "flex flex-col flex-1",
-                  viewMode === "grid" ? "p-4 space-y-3" : "flex flex-col items-center pr-2 gap-1"
-                )}>
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className={cn(
-                      "font-semibold leading-tight",
-                      viewMode === "list" ? "text-base" : "text-lg text-center"
+                return (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    key={item.id}
+                    className={cn(
+                      "group relative overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm hover:shadow-md transition-all",
+                      viewMode === "list" && "flex flex-row items-stretch"
+                    )}
+                  >
+                    {/* --- Media Area --- */}
+                    <div className={cn(
+                      "relative bg-muted overflow-hidden shrink-0",
+                      viewMode === "grid" ? "aspect-video w-full" : "w-32 sm:w-48 h-auto min-h-[100px]"
                     )}>
-                      {item.title}
-                    </h3>
-                    
-                    {importedAsNote && (
-                       <div title="Nota criada" className="shrink-0 text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 p-1 rounded-full">
-                         <Check className="h-3 w-3" />
-                       </div>
-                    )}
-                  </div>
+                      {isPlayingInline ? (
+                        <VideoPlayer item={item} autoPlay onClose={() => setPlayingId(null)} />
+                      ) : (
+                        <>
+                          {item.coverImage ? (
+                            <img 
+                              src={item.coverImage} 
+                              alt={item.title} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer" 
+                              loading="lazy"
+                              onClick={() => handlePlay(item)}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-secondary/50">
+                              <LayoutGrid className="h-8 w-8 opacity-20" />
+                            </div>
+                          )}
+                          
+                          {/* Play Overlay */}
+                          <div 
+                            className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center cursor-pointer"
+                            onClick={() => handlePlay(item)}
+                          >
+                             <div className="bg-white/90 text-black rounded-full p-2.5 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all shadow-lg">
+                                <Play className="h-5 w-5 fill-current pl-0.5" />
+                             </div>
+                          </div>
+                          
+                          {/* Duration Badge */}
+                          {item.durationFormatted && (
+                              <Badge variant="secondary" className="absolute bottom-1.5 right-1.5 h-5 px-1.5 text-[10px] bg-black/70 text-white border-0 gap-1 backdrop-blur-sm pointer-events-none">
+                                  <Clock className="w-3 h-3" /> {item.durationFormatted}
+                              </Badge>
+                          )}
+                        </>
+                      )}
+                    </div>
 
-                  <div className={cn(
-                    "flex items-center gap-2 mt-auto pt-2",
-                    viewMode === "list" && "pt-0"
-                  )}>
-                    {viewMode === "list" && item.videoUrl && (
-                      <Button variant="outline" size="sm" onClick={() => handlePlay(item)} className="h-8 text-xs">
-                        <Play className="h-3 w-3 mr-1.5" /> Assistir
-                      </Button>
-                    )}
+                    {/* --- Content Area --- */}
+                    <div className={cn(
+                      "flex flex-col justify-between flex-1",
+                      viewMode === "grid" ? "p-3 sm:p-4 gap-3" : "p-3 sm:p-4 gap-2"
+                    )}>
+                      <div className="space-y-1">
+                         <h3 className={cn(
+                           "font-semibold leading-tight line-clamp-2",
+                           viewMode === "list" ? "text-base" : "text-sm sm:text-base"
+                         )}>
+                           {item.title}
+                         </h3>
+                         {/* Optional: Add category or date here if available */}
+                      </div>
 
-                    <Button
-                      variant={importedAsNote ? "secondary" : "default"}
-                      size="sm"
-                      className={cn("text-xs h-8", viewMode === "grid" && "w-full")}
-                      onClick={() => (importedAsNote ? handleOpenNote(item) : handleImportNote(item))}
-                      disabled={!userId || (!item.subtitlesUrl && !saved)}
-                    >
-                      <FileText className="h-3 w-3 mr-1.5" /> 
-                      {importedAsNote ? "Ver Nota" : "Importar"}
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
-        
-        {!loadingUpdate && filteredItems.length === 0 && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="col-span-full py-12 text-center text-muted-foreground"
-          >
-            <p>Nenhum vídeo encontrado nesta categoria.</p>
-          </motion.div>
-        )}
-        </>
-        )}
-      </motion.div>
+                      <div className={cn(
+                         "flex items-center gap-2 mt-auto",
+                         viewMode === "grid" ? "w-full" : "w-auto self-start"
+                      )}>
+                        <Button
+                          variant={importedAsNote ? "outline" : "default"}
+                          size="sm"
+                          className={cn(
+                             "h-8 text-xs font-medium flex-1 shadow-sm",
+                             importedAsNote && "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/40"
+                          )}
+                          onClick={() => (importedAsNote ? handleOpenNote(item) : handleImportNote(item))}
+                          disabled={!userId}
+                        >
+                          {importedAsNote ? (
+                             <>
+                               <Check className="h-3.5 w-3.5 mr-1.5" /> Ver Nota
+                             </>
+                          ) : (
+                             <>
+                               <FileText className="h-3.5 w-3.5 mr-1.5" /> Importar
+                             </>
+                          )}
+                        </Button>
+                        
+                        {viewMode === "list" && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handlePlay(item)}>
+                                <Play className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          )}
+
+          {!initialLoading && filteredItems.length === 0 && (
+            <div className="col-span-full py-16 flex flex-col items-center justify-center text-muted-foreground text-center">
+               <div className="bg-muted p-4 rounded-full mb-3">
+                  <Search className="h-6 w-6 opacity-50" />
+               </div>
+               <p>Nenhum vídeo encontrado.</p>
+            </div>
+          )}
+        </motion.div>
+      </main>
     </div>
   )
 }

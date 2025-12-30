@@ -45,7 +45,7 @@ export default function ProfilePage() {
   }, [])
 
   return (
-    <div className="page-container">
+    <div className="page-container p-4">
       <PageHeader
         title="Perfil"
         subtitle="Informações da conta e sessão"

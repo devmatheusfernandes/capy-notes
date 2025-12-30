@@ -95,7 +95,7 @@ export default function PreferenciasPage() {
   }, [newAbbrev, customAbbrevs])
 
   return (
-    <div className="page-container">
+    <div className="page-container p-4">
       <PageHeader
         title="Preferências"
         subtitle="Abreviações e configurações para estudo bíblico"

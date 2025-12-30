@@ -1,5 +1,7 @@
 import { db } from "@/lib/firebase"
-import { collection, doc, getDoc, onSnapshot, setDoc, deleteField } from "firebase/firestore"
+import { collection, doc, getDoc, onSnapshot, setDoc, deleteField, query, where, getDocs, limit } from "firebase/firestore"
+import { normalizeTerm } from "@/lib/tokenize"
+import { CATEGORY_NAMES } from "@/lib/constants"
 
 const ROOT_CATEGORY = "VideoOnDemand"
 
@@ -19,6 +21,7 @@ export type VideoData = {
   contentText?: string
   createdAt?: string
   updatedAt?: string
+  tokens?: string[]
 }
 
 export type CategoryGroup = {
@@ -92,22 +95,6 @@ async function fetchCategory(key: string): Promise<any> {
   const url = `https://b.jw-cdn.org/apis/mediator/v1/categories/T/${key}?detailed=1&mediaLimit=0&clientType=www`
   const res = await fetch(url)
   return res.json()
-}
-
-// Map known category keys to friendly names
-const CATEGORY_NAMES: Record<string, string> = {
-  "VODPgmEvtMorningWorship": "Adoração Matinal",
-  "VODStudio": "Estúdio JW",
-  "VODMusicVideos": "Clipes Musicais",
-  "VODOriginalSongs": "Cânticos Originais",
-  "StudioNewsReports": "Notícias do Estúdio",
-  "VODChildren": "Crianças",
-  "VODFamily": "Família",
-  "VODTeenagers": "Adolescentes",
-  "VODMinistryTools": "Ferramentas de Ministério",
-  "VODMovies": "Filmes",
-  "VODProgramsEvents": "Programas e Eventos",
-  "VODIntSignLanguage": "Língua de Sinais"
 }
 
 // Recursive crawler to find all videos
@@ -235,3 +222,96 @@ export async function saveVideoContent(userId: string, video: VideoData, content
     }
     await setDoc(ref, payload, { merge: true })
 }
+
+export async function getVideoById(id: string): Promise<VideoData | null> {
+  // 1. Try Firestore first
+  const ref = doc(db, "videos", id)
+  const snap = await getDoc(ref)
+  if (snap.exists()) {
+    return { id: snap.id, ...snap.data() } as VideoData
+  }
+
+  // 2. Fallback to API
+  try {
+    const url = `https://b.jw-cdn.org/apis/mediator/v1/media-items/T/${id}?clientType=www`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const data = await res.json()
+    const video = data.media[0]
+    
+    if (!video) return null
+
+    // Extract same fields as crawlCategory
+    let subtitlesUrl: string | undefined
+    for (const f of video.files || []) {
+      if (f?.subtitles?.url) {
+        subtitlesUrl = f.subtitles.url
+        break
+      }
+    }
+
+    const title: string = video.title || ""
+    const primaryCategory = video.primaryCategory || "VideoOnDemand"
+    const durationFormatted = video.durationFormattedMinSec || ""
+    const coverImage: string | undefined = video.images?.wss?.lg || video.images?.pnr?.lg || video.images?.sqr?.lg || undefined
+    const videoUrl = selectBestVideoUrl(video.files || [])
+
+    return {
+      id: video.naturalKey,
+      title,
+      categoryKey: video.primaryCategory || "VideoOnDemand",
+      primaryCategory,
+      durationFormatted,
+      coverImage,
+      subtitlesUrl,
+      videoUrl,
+      book: extractBook(title),
+      // Try to get content text if subtitles exist? 
+      // We might not have it parsed yet, so contentText might be undefined.
+      // But we can try to fetch subtitles on the fly in the page component if needed.
+    }
+  } catch (err) {
+    console.error("Error fetching video from API:", err)
+    return null
+  }
+}
+
+export async function searchVideosByToken(term: string): Promise<VideoData[]> {
+  const normalizedTerm = normalizeTerm(term).trim()
+  if (!normalizedTerm) return []
+  
+  // Split into tokens
+  const searchTokens = normalizedTerm.split(" ").filter(t => t.length > 0)
+  if (searchTokens.length === 0) return []
+
+  // Use the longest token for the primary search to be most specific
+  const primaryToken = searchTokens.reduce((a, b) => a.length > b.length ? a : b)
+  
+  const videosRef = collection(db, "videos")
+  // We query for the primary token
+  const q = query(
+    videosRef, 
+    where("tokens", "array-contains", primaryToken),
+    limit(200)
+  )
+  
+  const querySnapshot = await getDocs(q)
+  const videos: VideoData[] = []
+  
+  querySnapshot.forEach((doc) => {
+    videos.push({ id: doc.id, ...doc.data() } as VideoData)
+  })
+  
+  // Client-side filtering for other tokens if necessary is done by the caller (page.tsx),
+  // but we can also do a basic filter here to ensure relevance
+  if (searchTokens.length > 1) {
+    return videos.filter(video => {
+      const videoTokens = video.tokens || []
+      return searchTokens.every(token => videoTokens.includes(token))
+    })
+  }
+  
+  return videos
+}
+
+export { CATEGORY_NAMES }

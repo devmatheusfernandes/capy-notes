@@ -120,7 +120,7 @@ export default function FolderItem({
             {/* Conteúdo de Texto */}
             <div className="flex-1 min-w-0 w-full">
               <div className="font-semibold flex items-center gap-2 mb-0.5">
-                <span className="truncate flex-1 flex items-center gap-2">
+                <span className=" flex-1 flex items-center gap-2">
                   {title}
                   {pinned && <Pin className="h-3 w-3 text-muted-foreground rotate-45" />}
                 </span>

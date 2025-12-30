@@ -215,7 +215,7 @@ export default function CloudBackupPage() {
   // ==========================================
   if (activeBackup && hasLoaded) {
     return (
-      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
+      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden p-4">
         
         {/* Header Fixo */}
         <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

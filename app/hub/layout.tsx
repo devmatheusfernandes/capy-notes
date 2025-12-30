@@ -315,7 +315,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
               {children}
             </div>
             <Toaster />
