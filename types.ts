@@ -21,6 +21,7 @@ export interface NoteData {
   updatedAt: string
   type?: "pdf" | "note"
   fileUrl?: string
+  isLocked?: boolean
 }
 
 export interface CommentData {
@@ -40,6 +41,7 @@ export interface FolderData {
   trashed?: boolean
   createdAt: string
   updatedAt: string
+  isLocked?: boolean
 }
 
 export interface BreadcrumbItem {

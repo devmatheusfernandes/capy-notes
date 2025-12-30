@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { CheckSquare, Square, MoreVertical, FileText, Loader2, SpellCheck } from "lucide-react";
+import { CheckSquare, Square, MoreVertical, FileText, Loader2, SpellCheck, Lock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,13 +164,21 @@ export function NoteCard({
                 ) : (
                   <>
                     {note.title || <span className="text-muted-foreground italic font-normal">Sem título</span>}
-                    {isPdf && <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5"><FileText className="w-3 h-3 mr-1" />PDF</Badge>}
+                    {note.isLocked ? (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5 ml-2">
+                        <Lock className="w-3 h-3 mr-1" /> Protegida
+                      </Badge>
+                    ) : isPdf && <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5"><FileText className="w-3 h-3 mr-1" />PDF</Badge>}
                   </>
                 )}
               </div>
 
             {/* 2. Conteúdo Dinâmico */}
-              {hasChecklist ? (
+              {note.isLocked ? (
+                 <div className="">
+                   
+                 </div>
+              ) : hasChecklist ? (
                 // --- RENDERIZAÇÃO DE CHECKLIST ---
                 <div className="space-y-2 mt-1">
                   {checklist.map((item, idx) => (
@@ -221,7 +229,7 @@ export function NoteCard({
 
               {/* 3. Rodapé com Tags */}
               {noteTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2 pt-2">
+                <div className="flex flex-wrap gap-1 mt-2 pt-2">
                   {noteTags.map((tag) => (
                     <span
                       key={tag.id}

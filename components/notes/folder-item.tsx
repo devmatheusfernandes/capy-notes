@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreVertical, Pin, Folder as FolderIcon } from "lucide-react"
+import { MoreVertical, Pin, Folder as FolderIcon, Lock } from "lucide-react"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent } from "@/components/ui/context-menu"
 import { useState } from "react"
 
@@ -22,6 +22,7 @@ export interface FolderItemProps {
   actionsMenu: React.ReactNode
   hasSelectionMode: boolean
   pinned?: boolean
+  isLocked?: boolean
   draggable?: boolean
   onDragStart?: (e: React.DragEvent) => void
   onDragOver?: (e: React.DragEvent) => void
@@ -41,6 +42,7 @@ export default function FolderItem({
   actionsMenu,
   hasSelectionMode,
   pinned,
+  isLocked,
   draggable,
   onDragStart,
   onDragOver,
@@ -122,6 +124,7 @@ export default function FolderItem({
               <div className="font-semibold flex items-center gap-2 mb-0.5">
                 <span className=" flex-1 flex items-center gap-2">
                   {title}
+                  {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
                   {pinned && <Pin className="h-3 w-3 text-muted-foreground rotate-45" />}
                 </span>
               </div>

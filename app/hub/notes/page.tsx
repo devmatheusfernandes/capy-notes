@@ -11,7 +11,7 @@ import {
   useFolders,
   useTags,
 } from "@/hooks/notes";
-import { getSubfolders } from "@/lib/folders";
+import { getSubfolders, updateFolder } from "@/lib/folders";
 import { updateNote } from "@/lib/notes";
 import {
   Folder,
@@ -28,6 +28,8 @@ import {
   ArchiveRestore,
   PinOff,
   FolderOpen,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,6 +60,10 @@ import FolderItem from "@/components/notes/folder-item";
 import { BackgroundContextMenu } from "@/components/notes/background-context-menu";
 import { NoteTagSelector } from "@/components/notes/note-tag-selector";
 import { BatchTagEditorDialog } from "@/components/notes/batch-tag-editor-dialog";
+import { PinDialog } from "@/components/notes/pin-dialog";
+import { hasUserPin } from "@/lib/user-settings";
+import { toast } from "sonner";
+import { NoteData, FolderData } from "@/types";
 
 export default function NotesPage() {
   return (
@@ -98,6 +104,96 @@ function NotesContent() {
     action: () => void;
   } | null>(null);
 
+  const [pinDialogState, setPinDialogState] = useState<{
+    open: boolean;
+    mode: "open" | "toggle-lock";
+    itemId: string | null;
+    itemType: "note" | "folder";
+  }>({ open: false, mode: "open", itemId: null, itemType: "note" });
+
+  const [unlockedFolderIds, setUnlockedFolderIds] = useState<string[]>([]);
+
+  const handleNoteClick = (note: NoteData) => {
+    if (note.isLocked) {
+      setPinDialogState({ open: true, mode: "open", itemId: note.id, itemType: "note" });
+    } else {
+      router.push(`/hub/notes/${note.id}`);
+    }
+  }
+
+  const handleFolderClick = (folder: FolderData) => {
+    if (folder.isLocked) {
+      setPinDialogState({ open: true, mode: "open", itemId: folder.id, itemType: "folder" });
+    } else {
+      handleNavigateFolder(folder.id);
+    }
+  }
+
+  const handleToggleLock = async (note: NoteData) => {
+    if (!userId) return;
+    
+    if (!note.isLocked) {
+      const hasPin = await hasUserPin(userId);
+      if (!hasPin) {
+        toast.error("Defina um PIN nas configurações para trancar notas");
+        router.push("/hub/settings?tab=seguranca");
+        return;
+      }
+      await updateNote(userId, note.id, { isLocked: true });
+      toast.success("Nota trancada");
+    } else {
+      setPinDialogState({ 
+        open: true, 
+        mode: "toggle-lock", 
+        itemId: note.id,
+        itemType: "note"
+      });
+    }
+  }
+
+  const handleToggleFolderLock = async (folder: FolderData) => {
+    if (!userId) return;
+    
+    if (!folder.isLocked) {
+      const hasPin = await hasUserPin(userId);
+      if (!hasPin) {
+        toast.error("Defina um PIN nas configurações para trancar pastas");
+        router.push("/hub/settings?tab=seguranca");
+        return;
+      }
+      await updateFolder(userId, folder.id, { isLocked: true });
+      toast.success("Pasta trancada");
+    } else {
+      setPinDialogState({ 
+        open: true, 
+        mode: "toggle-lock", 
+        itemId: folder.id,
+        itemType: "folder"
+      });
+    }
+  }
+
+  const onPinSuccess = async () => {
+    if (!pinDialogState.itemId || !userId) return;
+
+    if (pinDialogState.mode === "open") {
+      if (pinDialogState.itemType === "note") {
+        router.push(`/hub/notes/${pinDialogState.itemId}`);
+      } else {
+        setUnlockedFolderIds(prev => [...prev, pinDialogState.itemId!]);
+        handleNavigateFolder(pinDialogState.itemId);
+      }
+    } else if (pinDialogState.mode === "toggle-lock") {
+      if (pinDialogState.itemType === "note") {
+        await updateNote(userId, pinDialogState.itemId, { isLocked: false });
+        toast.success("Nota destrancada");
+      } else {
+        await updateFolder(userId, pinDialogState.itemId, { isLocked: false });
+        toast.success("Pasta destrancada");
+      }
+    }
+  }
+
   // Ordenação
   const filteredNotes = useMemo(() => {
     if (!selectedTagId) return notes;
@@ -127,6 +223,12 @@ function NotesContent() {
   }, [folders, archived, currentFolderId]);
 
   const hasSelection = selectedNotes.length + selectedFolders.length > 0;
+
+  const isCurrentFolderLocked = useMemo(() => {
+    if (!currentFolderId) return false;
+    const f = folders.find(x => x.id === currentFolderId);
+    return !!(f?.isLocked && !unlockedFolderIds.includes(f.id));
+  }, [folders, currentFolderId, unlockedFolderIds]);
 
   useEffect(() => {
     try {
@@ -319,6 +421,21 @@ function NotesContent() {
         ))}
       </ContextMenuSubContent>
     </ContextMenuSub>
+  );
+
+  const lockedFolderUI = (
+    <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-muted rounded-full p-6 mb-4">
+        <Lock className="h-10 w-10 text-muted-foreground" />
+      </div>
+      <h2 className="text-xl font-semibold mb-2">Pasta Protegida</h2>
+      <p className="text-muted-foreground mb-6 max-w-sm">
+        Esta pasta está trancada. Digite o PIN para visualizar seu conteúdo.
+      </p>
+      <Button onClick={() => setPinDialogState({ open: true, mode: "open", itemId: currentFolderId!, itemType: "folder" })}>
+        Destrancar Pasta
+      </Button>
+    </div>
   );
 
   return (
@@ -583,6 +700,8 @@ function NotesContent() {
         onNewNote={handleCreateNote}
         onNewFolder={() => handleCreateFolder()}
       >
+        {isCurrentFolderLocked ? lockedFolderUI : (
+          <>
         <AnimatePresence mode="popLayout">
           <div
             className={cn(
@@ -601,8 +720,9 @@ function NotesContent() {
                 selected={selectedFolders.includes(f.id)}
                 view={view}
                 onToggleSelect={toggleFolderSelected}
-                onClick={() => handleNavigateFolder(f.id)}
+                onClick={() => handleFolderClick(f)}
                 hasSelectionMode={hasSelection}
+                isLocked={f.isLocked}
                 draggable
                 onDragStart={(e) => handleDragStart(e, "folder", f.id)}
                 onDragOver={handleDragOver}
@@ -638,6 +758,17 @@ function NotesContent() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => handleNavigateFolder(f.id)}>
                       <FolderOpen className="mr-2 h-4 w-4" /> Abrir
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => handleToggleFolderLock(f)}>
+                      {f.isLocked ? (
+                        <>
+                          <Unlock className="mr-2 h-4 w-4" /> Destrancar
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" /> Trancar
+                        </>
+                      )}
                     </DropdownMenuItem>
                     {getMoveSubmenu((target) => handleMoveFolder(f.id, target))}
                     <DropdownMenuSeparator />
@@ -704,6 +835,17 @@ function NotesContent() {
                     <ContextMenuItem onSelect={() => handleNavigateFolder(f.id)}>
                       <FolderOpen className="mr-2 h-4 w-4" /> Abrir
                     </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => handleToggleFolderLock(f)}>
+                      {f.isLocked ? (
+                        <>
+                          <Unlock className="mr-2 h-4 w-4" /> Destrancar
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" /> Trancar
+                        </>
+                      )}
+                    </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuSub>
                       <ContextMenuSubTrigger>
@@ -735,7 +877,7 @@ function NotesContent() {
                 tags={tags}
                 selected={selectedNotes.includes(n.id)}
                 onToggleSelect={toggleNoteSelected}
-                onClick={() => router.push(`/hub/notes/${n.id}`)}
+                onClick={() => handleNoteClick(n)}
                 onCheck={handleCheckItem}
                 onRename={handleRename}
                 hasSelectionMode={hasSelection}
@@ -782,6 +924,17 @@ function NotesContent() {
                       ) : (
                         <>
                           <Pin className="mr-2 h-4 w-4" /> Fixar
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => handleToggleLock(n)}>
+                      {n.isLocked ? (
+                        <>
+                          <Unlock className="mr-2 h-4 w-4" /> Destrancar
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" /> Trancar
                         </>
                       )}
                     </DropdownMenuItem>
@@ -850,6 +1003,17 @@ function NotesContent() {
                         </>
                       )}
                     </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => handleToggleLock(n)}>
+                      {n.isLocked ? (
+                        <>
+                          <Unlock className="mr-2 h-4 w-4" /> Destrancar
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="mr-2 h-4 w-4" /> Trancar
+                        </>
+                      )}
+                    </ContextMenuItem>
                     <ContextMenuItem onSelect={() => handleExportNote(n.id)}>
                       <Download className="mr-2 h-4 w-4" /> Exportar
                     </ContextMenuItem>
@@ -884,6 +1048,8 @@ function NotesContent() {
             </Button>
           </div>
         )}
+          </>
+        )}
         </BackgroundContextMenu>
       </main>
 
@@ -896,6 +1062,26 @@ function NotesContent() {
             notes.find((n) => n.id === editingTagsNoteId)?.tagIds || []
           }
           allTags={tags}
+        />
+      )}
+
+      {pinDialogState.open && (
+        <PinDialog
+          open={pinDialogState.open}
+          onOpenChange={(open) =>
+            setPinDialogState((prev) => ({ ...prev, open }))
+          }
+          title={
+            pinDialogState.mode === "toggle-lock"
+              ? `Destrancar ${pinDialogState.itemType === "folder" ? "Pasta" : "Nota"}`
+              : `${pinDialogState.itemType === "folder" ? "Pasta" : "Nota"} Protegida`
+          }
+          description={
+            pinDialogState.mode === "toggle-lock"
+              ? `Digite seu PIN para destrancar esta ${pinDialogState.itemType === "folder" ? "pasta" : "nota"} permanentemente.`
+              : `Digite seu PIN para acessar esta ${pinDialogState.itemType === "folder" ? "pasta" : "nota"}.`
+          }
+          onSuccess={onPinSuccess}
         />
       )}
 

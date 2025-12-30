@@ -1,18 +1,24 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { useCurrentUserId } from "@/hooks/notes"
 import { driveBackupNow } from "@/lib/backup"
 import { db } from "@/lib/firebase"
 import { doc, getDoc } from "firebase/firestore"
 import { BASE_COLORS, useBaseColor } from "@/provider/base-color-provider"
+import { setUserPin, hasUserPin, validateUserPin } from "@/lib/user-settings"
+import { toast } from "sonner"
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
   const { baseColor, setBaseColor } = useBaseColor()
   const userId = useCurrentUserId()
@@ -21,6 +27,13 @@ export default function SettingsPage() {
   const [backupError, setBackupError] = useState<string | null>(null)
   const [backupSuccess, setBackupSuccess] = useState(false)
 
+  // PIN States
+  const [hasPin, setHasPin] = useState(false)
+  const [currentPin, setCurrentPin] = useState("")
+  const [newPin, setNewPin] = useState("")
+  const [confirmPin, setConfirmPin] = useState("")
+  const [pinLoading, setPinLoading] = useState(false)
+
   useEffect(() => {
     const load = async () => {
       if (!userId) return
@@ -28,6 +41,9 @@ export default function SettingsPage() {
       const snap = await getDoc(ref)
       const data = snap.data() as { lastBackupAt?: string } | undefined
       setLastBackupAt(data?.lastBackupAt ?? null)
+      
+      // Check PIN
+      hasUserPin(userId).then(setHasPin)
     }
     load()
   }, [userId])
@@ -52,14 +68,50 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSavePin = async () => {
+    if (!userId) return
+    if (newPin !== confirmPin) {
+      toast.error("Os PINs não coincidem")
+      return
+    }
+    if (newPin.length < 4) {
+      toast.error("O PIN deve ter pelo menos 4 dígitos")
+      return
+    }
+
+    setPinLoading(true)
+    try {
+      if (hasPin) {
+        const isValid = await validateUserPin(userId, currentPin)
+        if (!isValid) {
+          toast.error("PIN atual incorreto")
+          setPinLoading(false)
+          return
+        }
+      }
+      
+      await setUserPin(userId, newPin)
+      setHasPin(true)
+      setCurrentPin("")
+      setNewPin("")
+      setConfirmPin("")
+      toast.success("PIN salvo com sucesso")
+    } catch (error) {
+      toast.error("Erro ao salvar PIN")
+    } finally {
+      setPinLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4 p-4">
       <h1 className="text-xl font-medium">Configurações</h1>
       <p className="text-sm text-muted-foreground">Ajuste as opções do aplicativo.</p>
 
-      <Tabs defaultValue="aparencia">
+      <Tabs defaultValue={searchParams.get("tab") || "aparencia"}>
         <TabsList>
           <TabsTrigger value="aparencia">Aparência</TabsTrigger>
+          <TabsTrigger value="seguranca">Segurança</TabsTrigger>
           <TabsTrigger value="preferencias">Preferências</TabsTrigger>
           <TabsTrigger value="backup">Backup</TabsTrigger>
         </TabsList>
@@ -96,6 +148,55 @@ export default function SettingsPage() {
                   <SelectItem value="violet">Violet</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="seguranca">
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Segurança</h2>
+            <p className="text-sm text-muted-foreground">Configure um PIN para proteger suas notas.</p>
+            
+            <div className="space-y-4 max-w-sm">
+              {hasPin && (
+                <div className="space-y-2">
+                  <Label htmlFor="currentPin">PIN Atual</Label>
+                  <Input
+                    id="currentPin"
+                    type="password"
+                    value={currentPin}
+                    onChange={(e) => setCurrentPin(e.target.value)}
+                    placeholder="Digite seu PIN atual"
+                  />
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="newPin">{hasPin ? "Novo PIN" : "Criar PIN"}</Label>
+                <Input
+                  id="newPin"
+                  type="password"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value)}
+                  placeholder="Digite o novo PIN"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPin">Confirmar Novo PIN</Label>
+                <Input
+                  id="confirmPin"
+                  type="password"
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value)}
+                  placeholder="Confirme o novo PIN"
+                />
+              </div>
+
+              <Button onClick={handleSavePin} disabled={pinLoading}>
+                {pinLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {hasPin ? "Alterar PIN" : "Criar PIN"}
+              </Button>
             </div>
           </div>
         </TabsContent>
