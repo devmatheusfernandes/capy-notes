@@ -364,7 +364,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
         ) : (
           <SidebarInset className="flex flex-col h-full overflow-hidden">
             <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background z-10 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-              <SidebarTrigger className="-ml-1" />
+              <SidebarTrigger className="-ml-1 text-primary" />
               <Separator orientation="vertical" className="mr-2 h-4" />
 
               {/* AQUI ESTÁ A MÁGICA: O HeaderContent dinâmico */}
@@ -660,7 +660,7 @@ function BibleHeader({ pathname }: { pathname: string | null }) {
         )}
       </div>
 
-      <div className="md:absolute md:left-1/2 md:-translate-x-1/2 max-w-[140px] md:max-w-none">
+      <div className="md:absolute md:left-1/2 md:-translate-x-1/2 max-w-[200px] md:max-w-none">
         <Select 
           value={versionParam} 
           onValueChange={(val) => {

@@ -498,7 +498,7 @@ function BibleContent() {
 
             {/* Header com Seletor de Versão */}
             <div className="flex justify-between items-center mb-6 px-1 mt-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">Bíblia Sagrada</h1>
+              <h1 className="text-xl font-bold tracking-tight text-primary">Bíblia Sagrada</h1>
               {/* Select removido daqui pois agora está no layout */}
             </div>
 
@@ -545,7 +545,7 @@ function BibleContent() {
         {view === "chapters" && (
           <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="p-4 max-w-[1100px] mx-auto">
             <h2 className="text-xl font-bold mb-4 text-white">
-              O Livro de {selectedBook}
+              O Livro de <span className="text-primary">{selectedBook}</span>
             </h2>
             <p className="text-sm font-bold text-gray-400 mb-2">Capítulos</p>
             

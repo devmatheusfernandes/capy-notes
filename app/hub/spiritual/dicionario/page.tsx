@@ -52,9 +52,9 @@ export default function DicionarioPage() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto p-6 space-y-8">
-      <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Dicionário Strong</h1>
+    <div className="container max-w-4xl mx-auto p-4 space-y-6">
+      <div className="flex flex-col">
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Dicionário Strong</h1>
         <p className="text-muted-foreground">
           Pesquise por palavras em grego ou hebraico, ou use o código Strong (ex: G1, H1234).
         </p>
