@@ -592,7 +592,7 @@ export default function CloudBackupPage() {
             </SheetHeader>
              
             {/* Corpo da Sheet */}
-            <ScrollArea className="flex-1 px-6 py-6">
+            <ScrollArea className="flex-1 px-6 py-6 overflow-hidden">
               <div className="space-y-6">
                  
                  {/* Título */}
@@ -715,7 +715,7 @@ export default function CloudBackupPage() {
                  <div className="h-px bg-border/50" />
 
                  {/* Conteúdo */}
-                 <div className="space-y-2 h-full">
+                 <div className="space-y-2">
                     <Textarea 
                       value={editContent} 
                       onChange={e => setEditContent(e.target.value)} 
