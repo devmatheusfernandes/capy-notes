@@ -97,35 +97,19 @@ import type { CommentData } from "@/types";
 import {
   MessageSquarePlus,
   BookOpen,
-  Tags,
-  X,
-  ChevronsUpDown,
+  Tags
 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
-  SheetFooter,
-  SheetClose,
+  SheetTitle
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandGroup,
-  CommandItem,
-  CommandEmpty,
-} from "@/components/ui/command";
 import { useTags } from "@/hooks/notes";
 import { updateNote } from "@/lib/notes";
+import { cn } from "@/lib/utils";
 import CommentsSidebar from "@/components/tiptap-templates/simple/comments-sidebar";
 import BibleSidebar from "@/components/tiptap-templates/simple/bible-sidebar";
 import { BibleReferenceExtension } from "@/components/tiptap-extension/bible-reference-extension";
@@ -281,7 +265,8 @@ export function SimpleEditor({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [isTagComboboxOpen, setIsTagComboboxOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const { tags } = useTags();
 
   const getImageUrls = (json: JSONContent): string[] => {
@@ -427,9 +412,42 @@ export function SimpleEditor({
   }, [editor]);
 
   useEffect(() => {
-    setTitleInput(title ?? "");
-    setSelectedTagIds(tagIds ?? []);
-  }, [title, tagIds]);
+    if (!isSettingsOpen) {
+      setTitleInput(title ?? "");
+      setSelectedTagIds(tagIds ?? []);
+    }
+  }, [title, tagIds, isSettingsOpen]);
+
+  useEffect(() => {
+    if (!userId || !noteId) return;
+    
+    // Se o input for igual ao título salvo, não faz nada
+    if (titleInput === (title ?? "")) {
+      return;
+    }
+
+    // Se o usuário digitou, reseta o status para idle (ou saving se já estiver no processo)
+    // Isso remove o verde de "salvo" se o usuário voltar a editar
+    setSaveStatus("idle");
+
+    const handler = setTimeout(async () => {
+      setSaveStatus("saving");
+      try {
+        await updateNote(userId, noteId, {
+          title: titleInput.trim(),
+        });
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      } catch (error) {
+        console.error("Erro ao salvar título:", error);
+        setSaveStatus("idle");
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [titleInput, userId, noteId, title]);
 
   const isFirstRender = useRef(true);
 
@@ -671,100 +689,56 @@ export function SimpleEditor({
           <SheetHeader>
             <SheetTitle>Configurações da Nota</SheetTitle>
           </SheetHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
             <div className="space-y-2">
               <Input
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
                 placeholder="Título da nota"
+                className={cn(
+                  "transition-colors duration-300",
+                  saveStatus === "saving" &&
+                    "border-yellow-500 focus-visible:border-yellow-500 focus-visible:ring-yellow-500/50",
+                  saveStatus === "saved" &&
+                    "border-green-500 focus-visible:border-green-500 focus-visible:ring-green-500/50"
+                )}
               />
             </div>
             <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {selectedTagIds.map((tid) => {
-                  const t = tags.find((x) => x.id === tid);
-                  return (
-                    <Badge
-                      key={tid}
-                      variant="secondary"
-                      className="pl-2 pr-1 py-1"
-                    >
-                      {t?.name ?? tid}
-                      <button
-                        onClick={() =>
-                          setSelectedTagIds((prev) =>
-                            prev.filter((x) => x !== tid)
-                          )
-                        }
-                        className="ml-1 rounded-full p-0.5"
+              <Input
+                placeholder="Buscar tags..."
+                value={tagSearch}
+                onChange={(e) => setTagSearch(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-2 pt-2">
+                {tags
+                  .filter((t) =>
+                    t.name.toLowerCase().includes(tagSearch.toLowerCase())
+                  )
+                  .map((t) => {
+                    const isSelected = selectedTagIds.includes(t.id);
+                    return (
+                      <Badge
+                        key={t.id}
+                        variant={isSelected ? "default" : "outline"}
+                        className="cursor-pointer select-none"
+                        onClick={() => {
+                          const newIds = isSelected
+                            ? selectedTagIds.filter((id) => id !== t.id)
+                            : [...selectedTagIds, t.id];
+                          setSelectedTagIds(newIds);
+                          if (userId && noteId) {
+                            updateNote(userId, noteId, { tagIds: newIds });
+                          }
+                        }}
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  );
-                })}
+                        {t.name}
+                      </Badge>
+                    );
+                  })}
               </div>
-              <Popover
-                open={isTagComboboxOpen}
-                onOpenChange={setIsTagComboboxOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    role="combobox"
-                    aria-expanded={isTagComboboxOpen}
-                    className="w-full justify-between"
-                    data-style="outline"
-                  >
-                    Selecionar tags
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="min-w-max p-0" align="center">
-                  <Command>
-                    <CommandInput placeholder="Buscar tag" />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma tag encontrada</CommandEmpty>
-                      <CommandGroup heading="Tags">
-                        {tags.map((t) => (
-                          <CommandItem
-                            key={t.id}
-                            value={t.name}
-                            onSelect={() => {
-                              setSelectedTagIds((prev) =>
-                                prev.includes(t.id)
-                                  ? prev.filter((x) => x !== t.id)
-                                  : [...prev, t.id]
-                              );
-                              setIsTagComboboxOpen(false);
-                            }}
-                          >
-                            {t.name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
             </div>
           </div>
-          <SheetFooter>
-            <SheetClose asChild>
-              <Button data-style="ghost">Cancelar</Button>
-            </SheetClose>
-            <Button
-              onClick={async () => {
-                if (!userId || !noteId) return;
-                await updateNote(userId, noteId, {
-                  title: titleInput.trim(),
-                  tagIds: selectedTagIds,
-                });
-                setIsSettingsOpen(false);
-              }}
-            >
-              Salvar
-            </Button>
-          </SheetFooter>
         </SheetContent>
       </Sheet>
       <CommentsSidebar
