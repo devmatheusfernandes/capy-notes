@@ -11,7 +11,7 @@ import {
   useFolders,
   useTags,
 } from "@/hooks/notes";
-import { getFolderPath, getSubfolders } from "@/lib/folders";
+import { getSubfolders } from "@/lib/folders";
 import { updateNote } from "@/lib/notes";
 import {
   Folder,
@@ -53,6 +53,7 @@ import { NoteCard } from "@/components/notes/note-card";
 import FolderItem from "@/components/notes/folder-item";
 import { BackgroundContextMenu } from "@/components/notes/background-context-menu";
 import { NoteTagSelector } from "@/components/notes/note-tag-selector";
+import { BatchTagEditorDialog } from "@/components/notes/batch-tag-editor-dialog";
 
 export default function NotesPage() {
   return (
@@ -65,7 +66,7 @@ export default function NotesPage() {
 function NotesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { create, loading } = useCreateNote();
+  const { create } = useCreateNote();
   const userId = useCurrentUserId();
 
   const [view, setView] = useState<"list" | "grid">("list");
@@ -84,6 +85,7 @@ function NotesContent() {
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [editingTagsNoteId, setEditingTagsNoteId] = useState<string | null>(null);
+  const [isBatchTagEditorOpen, setIsBatchTagEditorOpen] = useState(false);
 
   const [confirm, setConfirm] = useState<{
     open: boolean;
@@ -468,6 +470,16 @@ function NotesContent() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    onClick={() => setIsBatchTagEditorOpen(true)}
+                    title="Editar etiquetas"
+                    className="hover:bg-white/10 hover:text-current"
+                    disabled={selectedNotes.length === 0}
+                  >
+                    <Tag size={18} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={bulkArchive}
                     title="Arquivar"
                     className="hover:bg-white/10 hover:text-current"
@@ -545,10 +557,21 @@ function NotesContent() {
         </AnimatePresence>
 
         {/* GRID DE CONTEÚDO */}
-        <BackgroundContextMenu
-          onNewNote={handleCreateNote}
-          onNewFolder={() => handleCreateFolder()}
-        >
+        <BatchTagEditorDialog
+        open={isBatchTagEditorOpen}
+        onOpenChange={setIsBatchTagEditorOpen}
+        selectedNoteIds={selectedNotes}
+        allNotes={allNotes}
+        tags={tags}
+        onSuccess={() => {
+          setSelectedNotes([]);
+          setIsBatchTagEditorOpen(false);
+        }}
+      />
+      <BackgroundContextMenu
+        onNewNote={handleCreateNote}
+        onNewFolder={() => handleCreateFolder()}
+      >
         <AnimatePresence mode="popLayout">
           <div
             className={cn(
