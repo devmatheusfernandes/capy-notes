@@ -292,6 +292,11 @@ function NotesContent() {
     setSelectedFolders(visibleFolders.map((f) => f.id));
   };
 
+  const handleCreateNote = async () => {
+    const note = await create({ folderId: currentFolderId });
+    router.push(`/hub/notes/${note.id}`);
+  };
+
   const actions = createNotesPageActions({
     userId: userId ?? undefined,
     currentFolderId,
@@ -310,7 +315,6 @@ function NotesContent() {
   });
 
   const {
-    handleCreateNote,
     handleCreateFolder,
     handleNavigateFolder,
     handleAddTag,

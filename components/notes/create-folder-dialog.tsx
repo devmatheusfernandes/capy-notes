@@ -8,7 +8,7 @@ import { FolderPlus } from "lucide-react"
 
 export default function CreateFolderDialog({
   onCreate,
-  triggerText = "Nova Pasta",
+  triggerText = "Pasta",
   iconOnly = false,
 }: {
   onCreate: (name: string) => void | Promise<void>
