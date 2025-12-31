@@ -28,7 +28,7 @@ import {
 import { 
   Loader2, Cloud, Edit, Trash2, ArrowLeft, Save, Download, 
   Merge, Plus, Search, Tag as TagIcon, MoreVertical, Settings, 
-  FileJson, Filter, X, Check, ChevronsUpDown, LayoutGrid, List
+  FileJson, Filter, X, Check, ChevronsUpDown, LayoutGrid, List, Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,17 +49,24 @@ export default function CloudBackupPage() {
   const { 
     loadFile, notes, allTags,
     createNote, updateNote, deleteNote, renameTag, deleteTag,
-    generateUpdatedBlob, mergeBackup, createEmptyBackup,
+    generateUpdatedBlob, mergeBackup, createEmptyBackup, setBackupName,
     isMerging, hasLoaded 
   } = useJwlEditor();
   
-  const { backups, importBackup, saveChanges, fetchBackupFile, deleteBackup, fetchBackups, loadingList } = useCloudBackups();
+  const { backups, importBackup, saveChanges, fetchBackupFile, deleteBackup, fetchBackups, loadingList, renameCloudBackup } = useCloudBackups();
 
   // Estados de Navegação
   const [activeBackup, setActiveBackup] = useState<BackupMetadata | null>(null);
   const [isSavingCloud, setIsSavingCloud] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
+  // Renomear Backup
+  const [isRenamingBackup, setIsRenamingBackup] = useState(false);
+  const [backupNameInput, setBackupNameInput] = useState("");
+  
+  // Auto-Save Status
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'unsaved' | 'saving'>('saved');
+
   // Filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [colorFilter, setColorFilter] = useState<string>("all");
@@ -70,8 +77,12 @@ export default function CloudBackupPage() {
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [isTagComboboxOpen, setIsTagComboboxOpen] = useState(false);
+  const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
 
   // Edição de Nota (Estado)
+  const [noteSaveStatus, setNoteSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [lastSavedState, setLastSavedState] = useState<string>(""); 
+
   const [editingNote, setEditingNote] = useState<Note | null>(null); // NULL = Criação
   const [editContent, setEditContent] = useState("");
   const [editTitle, setEditTitle] = useState("");
@@ -93,6 +104,55 @@ export default function CloudBackupPage() {
   }, []);
 
   // --- Handlers Básicos ---
+  // --- Auto-Save Effect ---
+  useEffect(() => {
+    if (saveStatus === 'unsaved' && activeBackup) {
+      const timer = setTimeout(async () => {
+        setSaveStatus('saving');
+        await handleCloudSave(true); // Silent mode
+        setSaveStatus('saved');
+      }, 5000); // 5 segundos debounce
+
+      return () => clearTimeout(timer);
+    }
+  }, [saveStatus, activeBackup]);
+
+  // --- Navigation Guard ---
+  const handleGoBack = () => {
+    if (saveStatus === 'unsaved') {
+      setIsUnsavedChangesDialogOpen(true);
+    } else {
+      setActiveBackup(null);
+    }
+  };
+
+  const confirmExit = () => {
+    setActiveBackup(null);
+    setIsUnsavedChangesDialogOpen(false);
+    setSaveStatus('saved'); // Reseta status
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!activeBackup || !backupNameInput.trim()) return;
+    
+    try {
+        // 1. Atualiza Manifesto Interno
+        setBackupName(backupNameInput);
+        
+        // 2. Se não for temp, atualiza na nuvem
+        if (activeBackup.id !== "new-temp") {
+           await renameCloudBackup(activeBackup.id, backupNameInput);
+        }
+        
+        // 3. Atualiza estado local
+        setActiveBackup(prev => prev ? ({ ...prev, name: backupNameInput }) : null);
+        setIsRenamingBackup(false);
+        // toast.success("Backup renomeado"); // O hook já solta toast
+    } catch (e) {
+        // toast.error("Erro ao renomear");
+    }
+  };
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       toast.promise(importBackup(e.target.files[0]), {
@@ -129,7 +189,7 @@ export default function CloudBackupPage() {
     }
   };
 
-  const handleCloudSave = async () => {
+  const handleCloudSave = async (silent: boolean = false) => {
     if (!activeBackup) return;
     setIsSavingCloud(true);
     try {
@@ -153,10 +213,12 @@ export default function CloudBackupPage() {
               updatedAt: new Date().toISOString()
             }) : null);
           }
-          toast.success("Salvo na nuvem!");
+          if (!silent) toast.success("Salvo na nuvem!");
         }
       }
-    } catch { toast.error("Erro ao salvar."); }
+    } catch { 
+       if (!silent) toast.error("Erro ao salvar."); 
+    }
     finally { setIsSavingCloud(false); }
   };
 
@@ -168,6 +230,11 @@ export default function CloudBackupPage() {
     setEditContent("");
     setEditColor("0");
     setSelectedTags([]);
+    
+    // Reset Auto-Save
+    setLastSavedState(JSON.stringify({title: "", content: "", color: "0", tags: []}));
+    setNoteSaveStatus('saved');
+    
     setIsNoteSheetOpen(true);
   };
 
@@ -176,31 +243,133 @@ export default function CloudBackupPage() {
     setEditContent(note.Content || "");
     setEditTitle(note.Title || "");
     setEditColor(note.ColorIndex.toString());
-    setSelectedTags([...note.Tags]); // Copia o array de tags
+    const tags = [...note.Tags];
+    setSelectedTags(tags);
+    
+    // Reset Auto-Save
+    setLastSavedState(JSON.stringify({
+        title: note.Title || "", 
+        content: note.Content || "", 
+        color: note.ColorIndex.toString(), 
+        tags: tags
+    }));
+    setNoteSaveStatus('saved');
+    
     setIsNoteSheetOpen(true);
   };
 
-  const saveNoteChanges = () => {
-    const toastId = toast.loading("Salvando nota...");
+  const persistNote = async (isManual: boolean = false) => {
+    // Se não tiver título nem conteúdo, ignora (exceto se for manual, aí valida)
+    if (!editTitle && !editContent && !isManual) return;
+    
+    const currentState = JSON.stringify({
+        title: editTitle,
+        content: editContent,
+        color: editColor,
+        tags: selectedTags
+    });
+    
+    // Se não mudou nada, ignora (apenas no automático)
+    if (!isManual && currentState === lastSavedState) return;
+
+    setNoteSaveStatus('saving');
+    const cleanTags = selectedTags.map(t => t.trim()).filter(Boolean);
+
     try {
-      const cleanTags = selectedTags.map(t => t.trim()).filter(Boolean);
-      if (editingNote) {
-        updateNote(editingNote.NoteId, editContent, editTitle, parseInt(editColor), cleanTags);
-        toast.success("Nota atualizada!", { id: toastId });
-      } else {
-        createNote(editTitle, editContent, parseInt(editColor), cleanTags);
-        toast.success("Nota criada com sucesso!", { id: toastId });
-      }
-      setIsNoteSheetOpen(false);
+        if (editingNote) {
+            updateNote(editingNote.NoteId, editContent, editTitle, parseInt(editColor), cleanTags);
+        } else {
+            const newId = createNote(editTitle, editContent, parseInt(editColor), cleanTags);
+            if (newId) {
+                 // Converte para modo edição imediatamente
+                 setEditingNote({
+                     NoteId: newId,
+                     Title: editTitle,
+                     Content: editContent,
+                     ColorIndex: parseInt(editColor),
+                     Tags: cleanTags,
+                     LastModified: new Date().toISOString(),
+                     // Created não faz parte da interface Note, removido.
+                     BlockType: 0,
+                     UserMarkId: 0
+                 });
+            }
+        }
+        
+        setLastSavedState(currentState);
+        setNoteSaveStatus('saved');
+        setSaveStatus('unsaved'); // Marca o backup geral
+        
+        if (isManual) {
+             toast.success("Nota salva!");
+             setIsNoteSheetOpen(false);
+        }
     } catch (e) {
-      console.error(e);
-      toast.error("Erro ao salvar nota.", { id: toastId });
+        console.error(e);
+        setNoteSaveStatus('unsaved');
+        if (isManual) toast.error("Erro ao salvar nota.");
+    }
+  };
+
+  const saveNoteChanges = () => {
+      persistNote(true);
+  };
+
+  // Trigger para detectar mudanças imediatamente (Feedback Visual)
+  useEffect(() => {
+     if (!isNoteSheetOpen) return;
+     const currentState = JSON.stringify({
+         title: editTitle,
+         content: editContent,
+         color: editColor,
+         tags: selectedTags
+     });
+     
+     // Evita sobrescrever 'saving' se o persist estiver rodando
+     setNoteSaveStatus(prev => {
+        if (prev === 'saving') return prev;
+        return currentState !== lastSavedState ? 'unsaved' : 'saved';
+     });
+
+  }, [editTitle, editContent, editColor, selectedTags, lastSavedState, isNoteSheetOpen]);
+
+  // Trigger Automático (Debounce)
+  useEffect(() => {
+      if (!isNoteSheetOpen) return;
+      
+      const timer = setTimeout(() => {
+          persistNote(false);
+      }, 2000); 
+
+      return () => clearTimeout(timer);
+  }, [editTitle, editContent, editColor, selectedTags, isNoteSheetOpen, editingNote]);
+
+  const handleCloseSheet = async () => {
+     // Força salvamento antes de fechar se houver pendências
+     if (noteSaveStatus === 'unsaved') {
+        await persistNote(true);
+     }
+     setIsNoteSheetOpen(false);
+  };
+
+  const handleSheetOpenChange = (open: boolean) => {
+    if (!open) {
+      handleCloseSheet();
+    } else {
+      setIsNoteSheetOpen(true);
     }
   };
 
   const handleDeleteNote = (noteId: number) => {
     toast("Excluir nota?", {
-      action: { label: "Excluir", onClick: () => { deleteNote(noteId); toast.success("Nota excluída."); } }
+      action: { 
+        label: "Excluir", 
+        onClick: () => { 
+           deleteNote(noteId); 
+           toast.success("Nota excluída.");
+           setSaveStatus('unsaved'); // Marca como não salvo
+        } 
+      }
     });
   };
 
@@ -210,12 +379,14 @@ export default function CloudBackupPage() {
     renameTag(tagId, editingTagName);
     setEditingTagId(null);
     toast.success("Tag renomeada");
+    setSaveStatus('unsaved'); // Marca como não salvo
   };
 
   const handleDeleteTag = (tagId: number) => {
     if(confirm("Remover tag de todas as notas?")) {
       deleteTag(tagId);
       toast.success("Tag removida");
+      setSaveStatus('unsaved'); // Marca como não salvo
     }
   };
 
@@ -254,13 +425,59 @@ export default function CloudBackupPage() {
         <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center justify-between px-4 h-14">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setActiveBackup(null)} className="-ml-2">
+              <Button variant="ghost" size="icon" onClick={handleGoBack} className="-ml-2">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="flex flex-col">
-                <span className="font-semibold text-sm max-w-[120px] sm:max-w-xs truncate">{activeBackup.name}</span>
-                <span className="text-[10px] text-muted-foreground">{notes.length} notas</span>
-              </div>
+              
+              {isRenamingBackup ? (
+                 <div className="flex items-center gap-1">
+                    <Input 
+                      value={backupNameInput} 
+                      onChange={e => setBackupNameInput(e.target.value)}
+                      className="h-7 w-[150px] sm:w-[200px] text-sm"
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRenameSubmit();
+                        if (e.key === 'Escape') setIsRenamingBackup(false);
+                      }}
+                    />
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleRenameSubmit}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setIsRenamingBackup(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                 </div>
+              ) : (
+                <div className="flex flex-col group cursor-pointer" onClick={() => { setBackupNameInput(activeBackup.name); setIsRenamingBackup(true); }}>
+                  <div className="flex items-center gap-2">
+                     <span className="font-semibold text-sm max-w-[120px] sm:max-w-xs truncate">{activeBackup.name}</span>
+                     <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                  </div>
+                  
+                  {/* Status e Contador */}
+                  <div className="flex items-center gap-2 text-[10px]">
+                     <span className="text-muted-foreground">{notes.length} notas</span>
+                     
+                     {/* Badge de Status */}
+                     {saveStatus === 'unsaved' && (
+                        <span className="flex items-center gap-1 text-orange-500 font-medium animate-pulse">
+                           <div className="w-1.5 h-1.5 rounded-full bg-orange-500" /> Não salvo
+                        </span>
+                     )}
+                     {saveStatus === 'saving' && (
+                        <span className="flex items-center gap-1 text-blue-500 font-medium">
+                           <Loader2 className="w-2.5 h-2.5 animate-spin" /> Salvando...
+                        </span>
+                     )}
+                     {saveStatus === 'saved' && (
+                        <span className="flex items-center gap-1 text-green-500 font-medium opacity-70">
+                           <Check className="w-2.5 h-2.5" /> Salvo
+                        </span>
+                     )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -311,10 +528,7 @@ export default function CloudBackupPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={handleCloudSave} disabled={isSavingCloud}>
-                    {isSavingCloud ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                    Salvar na Nuvem
-                  </DropdownMenuItem>
+                 
                   <DropdownMenuItem onClick={() => setIsTagsModalOpen(true)}>
                     <Settings className="mr-2 h-4 w-4"/> Gerenciar Tags Globais
                   </DropdownMenuItem>
@@ -352,6 +566,26 @@ export default function CloudBackupPage() {
               </DropdownMenu>
             </div>
           </div>
+
+          {/* Dialog de Confirmação de Saída */}
+          <Dialog open={isUnsavedChangesDialogOpen} onOpenChange={setIsUnsavedChangesDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Alterações não salvas</DialogTitle>
+                <DialogDescription>
+                  Você tem alterações que ainda não foram salvas na nuvem. Se sair agora, essas alterações podem ser perdidas. O salvamento automático ocorre a cada 5 segundos de inatividade.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setIsUnsavedChangesDialogOpen(false)}>Cancelar</Button>
+                <Button variant="destructive" onClick={confirmExit}>Sair sem salvar</Button>
+                <Button onClick={async () => {
+                   await handleCloudSave();
+                   confirmExit();
+                }}>Salvar e Sair</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Barra de Busca e Filtros Expansível */}
           <AnimatePresence>
@@ -579,7 +813,7 @@ export default function CloudBackupPage() {
         {/* ======================================================= */}
         {/* SHEET: EDITAR/CRIAR NOTA (Substitui o Dialog)          */}
         {/* ======================================================= */}
-        <Sheet open={isNoteSheetOpen} onOpenChange={setIsNoteSheetOpen}>
+        <Sheet open={isNoteSheetOpen} onOpenChange={handleSheetOpenChange}>
           <SheetContent side="right" className="w-[100vw] sm:w-[540px] p-0 flex flex-col gap-0 border-l shadow-2xl">
             {/* Header da Sheet */}
             <SheetHeader className="px-6 py-4 border-b bg-muted/10 flex flex-row items-center justify-between space-y-0">
@@ -588,7 +822,24 @@ export default function CloudBackupPage() {
                 <SheetDescription className="text-xs">
                   {editingNote ? "Faça suas alterações abaixo." : "Crie uma nova nota e adicione tags."}
                 </SheetDescription>
+                  <span className={cn(
+                    "text-xs mr-2 transition-colors",
+                    noteSaveStatus === 'saving' && "text-yellow-600",
+                    noteSaveStatus === 'unsaved' && "text-red-500",
+                    noteSaveStatus === 'saved' && "text-green-600"
+                 )}>
+                    {noteSaveStatus === 'saving' && "Salvando..."}
+                    {noteSaveStatus === 'unsaved' && "Alterações pendentes"}
+                    {noteSaveStatus === 'saved' && "Salvo no backup"}
+                 </span>
               </div>
+              
+              {/* Botão de Excluir no Header */}
+              {editingNote && (
+                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteNote(editingNote.NoteId)}>
+                     <Trash2 className="h-5 w-5" />
+                  </Button>
+               )}
             </SheetHeader>
              
             {/* Corpo da Sheet */}
@@ -725,23 +976,6 @@ export default function CloudBackupPage() {
                  </div>
               </div>
             </ScrollArea>
-
-            {/* Footer da Sheet */}
-            <SheetFooter className="px-6 py-4 border-t bg-muted/10 sm:justify-between flex-row items-center gap-2">
-               {editingNote && (
-                  <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDeleteNote(editingNote.NoteId)}>
-                     <Trash2 className="h-5 w-5" />
-                  </Button>
-               )}
-               <div className="flex gap-2 ml-auto">
-                 <SheetClose asChild>
-                   <Button variant="ghost">Cancelar</Button>
-                 </SheetClose>
-                 <Button onClick={saveNoteChanges} className="bg-blue-600 hover:bg-blue-700 text-white">
-                   <Save className="mr-2 h-4 w-4" /> Salvar
-                 </Button>
-               </div>
-            </SheetFooter>
           </SheetContent>
         </Sheet>
 
@@ -799,8 +1033,8 @@ export default function CloudBackupPage() {
   }
 
   // ==========================================
-  // VIEW: DASHBOARD (LISTA DE BACKUPS)
-  // ==========================================
+   // VIEW: DASHBOARD (LISTA DE BACKUPS)
+   // ==========================================
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-8">

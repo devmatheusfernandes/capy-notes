@@ -151,5 +151,36 @@ export const useCloudBackups = () => {
       }
   }
 
-  return { backups, importBackup, saveChanges, fetchBackupFile, deleteBackup, fetchBackups, loadingList };
+  // 6. Renomear Backup
+  const renameCloudBackup = async (backupId: string, newName: string) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      const docRef = doc(db, "users", user.uid, "backups", backupId);
+      await updateDoc(docRef, {
+        name: newName,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Atualiza lista local
+      setBackups(prev => prev.map(b => b.id === backupId ? { ...b, name: newName } : b));
+      toast.success("Backup renomeado!");
+    } catch (error) {
+      console.error("Erro ao renomear:", error);
+      toast.error("Erro ao renomear backup");
+      throw error;
+    }
+  };
+
+  return { 
+    backups, 
+    importBackup, 
+    saveChanges, 
+    fetchBackupFile, 
+    deleteBackup, 
+    fetchBackups, 
+    loadingList,
+    renameCloudBackup
+  };
 };

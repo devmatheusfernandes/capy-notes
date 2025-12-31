@@ -156,7 +156,7 @@ export const useJwlEditor = () => {
       
       // Pega o ID da nota criada
       const noteIdRes = sqlDb.exec("SELECT last_insert_rowid()");
-      const noteId = noteIdRes[0].values[0][0];
+      const noteId = noteIdRes[0].values[0][0] as number;
 
       // 3. Inserir Tags
       tags.map(t => t.trim()).filter(Boolean).forEach((cleanTag) => {
@@ -185,6 +185,7 @@ export const useJwlEditor = () => {
       sqlDb.run("COMMIT");
       refreshNotes(sqlDb);
       refreshTags(sqlDb);
+      return noteId;
     } catch (error) {
       sqlDb.run("ROLLBACK");
       console.error("Erro ao criar nota:", error);
@@ -289,6 +290,13 @@ export const useJwlEditor = () => {
     sqlDb.run("UPDATE Tag SET Name = ? WHERE TagId = ?", [newName, tagId]);
     refreshTags(sqlDb);
     refreshNotes(sqlDb);
+  };
+
+  // --- 6.5 RENOMEAR BACKUP (MANIFESTO) ---
+  const setBackupName = (newName: string) => {
+    if (manifest) {
+      setManifest({ ...manifest, name: newName });
+    }
   };
 
   const deleteTag = (tagId: number) => {
@@ -520,7 +528,7 @@ export const useJwlEditor = () => {
   return {
     loadFile, notes, allTags,
     createNote, updateNote, deleteNote, 
-    renameTag, deleteTag,
+    renameTag, deleteTag, setBackupName,
     mergeBackup, generateUpdatedBlob, createEmptyBackup,
     isLoading, isMerging, hasLoaded: !!sqlDb
   };
