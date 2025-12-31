@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { CATEGORY_NAMES, getAllVideosGrouped, searchVideosByToken, type CategoryGroup, type VideoData } from "@/lib/all-videos"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,6 +14,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { 
   Film, 
   PlayCircle, 
@@ -24,11 +25,13 @@ import {
   X,
   Clock,
   CheckSquare,
-  Square
+  Square,
+  RefreshCw
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useDebounce } from "use-debounce"
 import { cn } from "@/lib/utils" 
+import { Progress } from "@/components/ui/progress"
 
 // --- Helper Functions ---
 
@@ -51,31 +54,88 @@ function splitIntoSentences(text: string) {
 function HighlightedSnippet({ text, term }: { text?: string, term: string }) {
   if (!text) return null
   
+  // Parse da query para identificar termos exatos e não exatos (mesma lógica da busca)
+  const regex = /(['"])(.*?)\1|(\S+)/g;
+  const cleanQuery = term.replace(/[,\.]/g, " ")
+  const parsedTerms: { term: string, exact: boolean }[] = []
+  let match
+  while ((match = regex.exec(cleanQuery)) !== null) {
+      if (match[2] && match[2].trim()) {
+          parsedTerms.push({ term: match[2].trim(), exact: true })
+      } else if (match[3] && match[3].trim()) {
+          parsedTerms.push({ term: match[3].trim(), exact: false })
+      }
+  }
+
   const normText = normalizeStr(text)
-  const normTerm = normalizeStr(term)
   
-  const firstWord = normTerm.split(" ")[0]
-  const index = normText.indexOf(firstWord)
+  // Encontrar a melhor posição para mostrar o snippet
+  let index = -1
+  
+  // Tenta encontrar o primeiro termo (dando prioridade para exatos)
+  for (const t of parsedTerms) {
+      const normT = normalizeStr(t.term)
+      if (t.exact) {
+        try {
+            const r = new RegExp(`\\b${escapeRegExp(normT)}\\b`)
+            const m = r.exec(normText)
+            if (m) {
+                index = m.index
+                break
+            }
+        } catch {}
+      } else {
+          const idx = normText.indexOf(normT)
+          if (idx !== -1) {
+              index = idx
+              break
+          }
+      }
+  }
   
   if (index === -1) return <span className="text-white/70 text-xs line-clamp-2">{text.slice(0, 100)}...</span>
 
+  // Calcula tamanho total dos termos para estimar o final do snippet
+  const totalTermsLength = parsedTerms.reduce((acc, t) => acc + t.term.length, 0)
   const start = Math.max(0, index - 40)
-  const end = Math.min(text.length, index + term.length + 60)
+  const end = Math.min(text.length, index + totalTermsLength + 60)
   
   const prefix = start > 0 ? "..." : ""
   const suffix = end < text.length ? "..." : ""
   
   const originalSnippet = text.slice(start, end)
   
-  const words = term.split(" ").filter(w => w.length > 0).map(escapeRegExp)
-  const regex = new RegExp(`(${words.join("|")})`, 'gi')
-  const parts = originalSnippet.split(regex)
+  // Cria a regex de destaque combinando todos os termos
+  // Para exatos, usa \b. Para não exatos, apenas o termo.
+  const partsRegex = parsedTerms.map(t => {
+      const esc = escapeRegExp(t.term)
+      // Se for exato, usa word boundary na regex de split para garantir que quebre certo?
+      // Na verdade, para o split funcionar bem com highlight, precisamos capturar o termo.
+      // O desafio é que o split consome o separador.
+      // Vamos fazer uma regex única com captura groups
+      if (t.exact) return `\\b${esc}\\b`
+      return esc
+  }).join("|")
+  
+  const splitRegex = new RegExp(`(${partsRegex})`, 'gi')
+  const parts = originalSnippet.split(splitRegex)
 
   return (
     <span className="text-white/80 text-xs leading-relaxed line-clamp-2 shadow-black drop-shadow-md">
       {prefix}
       {parts.map((part, i) => {
-        if (words.some(w => new RegExp(w, 'i').test(part))) {
+        // Verifica match para colorir
+        const normPart = normalizeStr(part)
+        
+        const isMatch = parsedTerms.some(t => {
+            const normT = normalizeStr(t.term)
+            if (t.exact) {
+                return new RegExp(`^${escapeRegExp(normT)}$`, 'i').test(normPart)
+            }
+            return new RegExp(escapeRegExp(normT), 'i').test(normPart)
+        })
+
+        if (isMatch) {
            return <span key={i} className="bg-yellow-500/80 text-white font-bold px-0.5 rounded">{part}</span>
         }
         return part
@@ -104,6 +164,17 @@ export default function LatestVideosPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [searchScope, setSearchScope] = useState<SearchScope>("text")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  // Update State
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const [updateProgress, setUpdateProgress] = useState({
+    status: 'idle', // idle, running, done, error
+    verified: 0,
+    saved: 0,
+    total: 0,
+    currentVideo: '',
+  })
 
   // Load initial data
   useEffect(() => {
@@ -151,28 +222,76 @@ export default function LatestVideosPage() {
     const search = async () => {
       setIsSearching(true)
       try {
-        const rawResults = await searchVideosByToken(debouncedQuery)
-        const terms = normalizeStr(debouncedQuery).split(" ").filter(t => t.length > 0)
+        // Parse da query para identificar termos exatos e não exatos
+        // Regex para capturar:
+        // 1. Texto entre aspas (simples ou duplas) -> Grupo 2
+        // 2. Palavras soltas (sem aspas) -> Grupo 3
+        const regex = /(['"])(.*?)\1|(\S+)/g;
+        
+        // Substituir vírgulas e pontos por espaços para separar palavras, mas não dentro de aspas (simplificação)
+        // Como o regex já lida com espaços, vamos apenas remover vírgulas soltas
+        const cleanQuery = debouncedQuery.replace(/[,\.]/g, " ")
+        
+        const parsedTerms: { term: string, exact: boolean }[] = []
+        let match
+        while ((match = regex.exec(cleanQuery)) !== null) {
+            if (match[2] && match[2].trim()) {
+                parsedTerms.push({ term: match[2].trim(), exact: true })
+            } else if (match[3] && match[3].trim()) {
+                parsedTerms.push({ term: match[3].trim(), exact: false })
+            }
+        }
+
+        // Se não encontrou nada (ex: string vazia), retorna
+        if (parsedTerms.length === 0) {
+            setSearchResults([])
+            setIsSearching(false)
+            return
+        }
+
+        // Para a busca no backend, usamos todos os termos combinados
+        // Se houver termos exatos, removemos as aspas para buscar os tokens
+        const queryToUse = parsedTerms.map(t => t.term).join(" ")
+        
+        const rawResults = await searchVideosByToken(queryToUse)
+        
+        // Normaliza os termos para comparação
+        const normalizedParsedTerms = parsedTerms.map(t => ({
+            term: normalizeStr(t.term),
+            exact: t.exact
+        }))
         
         const filtered = rawResults.filter(video => {
           const content = video.contentText || ""
           const normContent = normalizeStr(content)
 
+          const checkTerm = (text: string, termObj: { term: string, exact: boolean }) => {
+              if (termObj.exact) {
+                  // Busca exata com word boundary
+                  try {
+                      return new RegExp(`\\b${escapeRegExp(termObj.term)}\\b`).test(text)
+                  } catch {
+                      return false
+                  }
+              }
+              return text.includes(termObj.term)
+          }
+
           if (searchScope === "text") {
-            return terms.every(t => normContent.includes(t))
+            return normalizedParsedTerms.every(t => checkTerm(normContent, t))
           }
           if (searchScope === "paragraph") {
             const paragraphs = splitIntoParagraphs(content)
             return paragraphs.some(para => {
               const normPara = normalizeStr(para)
-              return terms.every(t => normPara.includes(t))
+              return normalizedParsedTerms.every(t => checkTerm(normPara, t))
             })
           }
           if (searchScope === "sentence") {
             const sentences = splitIntoSentences(content)
             return sentences.some(sent => {
               const normSent = normalizeStr(sent)
-              return terms.every(t => normSent.includes(t))
+              return normalizedParsedTerms.every(t => checkTerm(normSent, t))
             })
           }
           return true
@@ -207,6 +326,73 @@ export default function LatestVideosPage() {
   
   const selectAllCategories = () => setSelectedCategories(categories.map(c => c.key))
   const deselectAllCategories = () => setSelectedCategories([])
+
+  const runUpdate = async () => {
+    // Cancela anterior se houver
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+    }
+    
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    setUpdateProgress({ status: 'running', verified: 0, saved: 0, total: 0, currentVideo: 'Iniciando...' })
+    setIsUpdateDialogOpen(true)
+
+    try {
+      const res = await fetch('/api/videos/update', { 
+          method: 'POST',
+          signal: controller.signal
+      })
+      if (!res.body) throw new Error("Sem resposta do servidor")
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
+        
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const data = JSON.parse(line)
+            if (data.type === 'videos_fetched') {
+               setUpdateProgress(prev => ({ ...prev, total: data.count }))
+            } else if (data.type === 'progress') {
+               setUpdateProgress(prev => ({ 
+                 ...prev, 
+                 verified: data.verified, 
+                 saved: data.new,
+                 currentVideo: data.current
+               }))
+            } else if (data.type === 'done') {
+               setUpdateProgress(prev => ({ ...prev, status: 'done', currentVideo: 'Concluído!' }))
+               
+            }
+          } catch (e) { console.error(e) }
+        }
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+         setUpdateProgress(prev => ({ ...prev, status: 'aborted', currentVideo: 'Cancelado pelo usuário.' }))
+      } else {
+         console.error(err)
+         setUpdateProgress(prev => ({ ...prev, status: 'error', currentVideo: 'Erro ao atualizar.' }))
+      }
+    } finally {
+        abortControllerRef.current = null
+    }
+  }
+
+  const cancelUpdate = () => {
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort()
+      }
+  }
 
   // --- Render Components ---
 
@@ -323,6 +509,16 @@ export default function LatestVideosPage() {
                     </button>
                 )}
             </div>
+
+            <Button 
+                variant="outline" 
+                size="icon" 
+                className="hidden h-10 w-10 shrink-0 rounded-lg border-muted-foreground/20 bg-background"
+                onClick={runUpdate}
+                title="Atualizar Biblioteca"
+            >
+                <RefreshCw className={cn("h-4 w-4", updateProgress.status === 'running' && "animate-spin")} />
+            </Button>
 
             <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
               <SheetTrigger asChild>
@@ -528,6 +724,68 @@ export default function LatestVideosPage() {
           )}
         </div>
       </main>
+
+      {/* Update Progress Dialog */}
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Atualizando Biblioteca</DialogTitle>
+            <DialogDescription>
+              Verificando vídeos e baixando novos conteúdos...
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+             <div className="flex flex-col gap-2">
+                <div className="flex justify-between text-sm">
+                   <span className="text-muted-foreground">Progresso</span>
+                   <span className="font-medium">{updateProgress.verified} / {updateProgress.total || '?'}</span>
+                </div>
+                {/* Simple progress bar calculation */}
+                <Progress value={updateProgress.total ? (updateProgress.verified / updateProgress.total) * 100 : 0} />
+             </div>
+
+             <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/50 p-3 rounded-lg text-center">
+                   <div className="text-2xl font-bold">{updateProgress.saved}</div>
+                   <div className="text-xs text-muted-foreground">Novos Salvos</div>
+                </div>
+                <div className="bg-muted/50 p-3 rounded-lg text-center">
+                   <div className="text-2xl font-bold">{updateProgress.verified}</div>
+                   <div className="text-xs text-muted-foreground">Verificados</div>
+                </div>
+             </div>
+
+             <div className="bg-muted/30 p-2 rounded text-xs font-mono h-20 overflow-y-auto border">
+                {updateProgress.currentVideo ? (
+                    <p className="truncate">Processando: {updateProgress.currentVideo}</p>
+                ) : (
+                    <p className="text-muted-foreground">Aguardando início...</p>
+                )}
+                {updateProgress.status === 'done' && <p className="text-green-500 font-bold mt-2">Concluído!</p>}
+                {updateProgress.status === 'error' && <p className="text-red-500 font-bold mt-2">Erro!</p>}
+             </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+             {updateProgress.status === 'running' && (
+                 <Button 
+                    variant="destructive" 
+                    onClick={cancelUpdate}
+                 >
+                    Cancelar
+                 </Button>
+             )}
+             <Button 
+                variant={updateProgress.status === 'running' ? "outline" : "default"}
+                onClick={() => setIsUpdateDialogOpen(false)} 
+                disabled={updateProgress.status === 'running'}
+             >
+                {updateProgress.status === 'running' ? 'Executando...' : 'Fechar'}
+             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

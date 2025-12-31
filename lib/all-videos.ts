@@ -1,6 +1,6 @@
 import { db } from "@/lib/firebase"
 import { collection, doc, getDoc, onSnapshot, setDoc, deleteField, query, where, getDocs, limit } from "firebase/firestore"
-import { normalizeTerm } from "@/lib/tokenize"
+import { normalizeTerm, tokenize } from "@/lib/tokenize"
 import { CATEGORY_NAMES } from "@/lib/constants"
 
 const ROOT_CATEGORY = "VideoOnDemand"
@@ -280,38 +280,44 @@ export async function searchVideosByToken(term: string): Promise<VideoData[]> {
   const normalizedTerm = normalizeTerm(term).trim()
   if (!normalizedTerm) return []
   
-  // Split into tokens
-  const searchTokens = normalizedTerm.split(" ").filter(t => t.length > 0)
+  // Use tokenize to get the actual indexed tokens (ignores stopwords, handles punctuation)
+  const searchTokens = tokenize(term)
   if (searchTokens.length === 0) return []
 
-  // Use the longest token for the primary search to be most specific
-  const primaryToken = searchTokens.reduce((a, b) => a.length > b.length ? a : b)
+  // Limit to top 5 tokens to avoid excessive reads, but prioritize searching all if possible
+  const tokensToQuery = searchTokens.slice(0, 5)
   
   const videosRef = collection(db, "videos")
-  // We query for the primary token
-  const q = query(
-    videosRef, 
-    where("tokens", "array-contains", primaryToken),
-    limit(200)
-  )
   
-  const querySnapshot = await getDocs(q)
-  const videos: VideoData[] = []
-  
-  querySnapshot.forEach((doc) => {
-    videos.push({ id: doc.id, ...doc.data() } as VideoData)
+  // Run parallel queries for each token
+  // Each query gets up to 100 results. We combine them.
+  const promises = tokensToQuery.map(token => {
+      const q = query(
+        videosRef, 
+        where("tokens", "array-contains", token),
+        limit(100)
+      )
+      return getDocs(q)
   })
   
-  // Client-side filtering for other tokens if necessary is done by the caller (page.tsx),
-  // but we can also do a basic filter here to ensure relevance
-  if (searchTokens.length > 1) {
-    return videos.filter(video => {
-      const videoTokens = video.tokens || []
-      return searchTokens.every(token => videoTokens.includes(token))
-    })
+  try {
+      const snapshots = await Promise.all(promises)
+      
+      const videoMap = new Map<string, VideoData>()
+      
+      snapshots.forEach(snap => {
+          snap.docs.forEach(doc => {
+              if (!videoMap.has(doc.id)) {
+                  videoMap.set(doc.id, { id: doc.id, ...doc.data() } as VideoData)
+              }
+          })
+      })
+      
+      return Array.from(videoMap.values())
+  } catch (err) {
+      console.error("Error searching videos:", err)
+      return []
   }
-  
-  return videos
 }
 
 export { CATEGORY_NAMES }
