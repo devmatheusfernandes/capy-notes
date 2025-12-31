@@ -48,3 +48,24 @@ export interface BreadcrumbItem {
   id: string
   name: string
 }
+
+export type TaskStatus = "pending" | "in-progress" | "done"
+
+export interface SubTask {
+  id: string
+  title: string
+  completed: boolean
+}
+
+export interface TaskData {
+  id: string
+  title: string
+  comment?: string
+  subTasks?: SubTask[]
+  dueDate?: string // ISO date string YYYY-MM-DD
+  dueTime?: string // HH:mm
+  status: TaskStatus
+  createdAt: string
+  updatedAt: string
+  userId: string
+}
