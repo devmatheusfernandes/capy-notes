@@ -7,12 +7,14 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { signInWithGoogle } from "@/lib/auth";
 import { Spinner } from "@/components/ui/spinner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Home() {
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get("redirect") || "/hub/profile"
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
@@ -32,10 +34,11 @@ export default function Home() {
   useEffect(() => {
     if (user) {
       setLoading(true)
-      document.cookie = `auth=1; path=/; max-age=${60 * 60 * 24 * 7}`
-      router.push("/hub/profile")
+      const maxAge = 400 * 24 * 60 * 60
+      document.cookie = `auth=1; path=/; max-age=${maxAge}`
+      router.push(redirectUrl)
     }
-  }, [user, router])
+  }, [user, router, redirectUrl])
 
   return (
     <div>

@@ -82,6 +82,18 @@ export default function ProfilePage() {
               {user?.email || "—"}
             </p>
           </div>
+
+          <Button 
+            variant="destructive" 
+            className="w-full" 
+            onClick={async () => {
+              await signOutUser()
+              router.push("/")
+            }}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair da conta
+          </Button>
         </div>
         </div>
       </div>

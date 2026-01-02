@@ -1,12 +1,15 @@
-import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo, signOut } from "firebase/auth"
+import { GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo, signOut, setPersistence, browserLocalPersistence } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 
 const provider = new GoogleAuthProvider()
 
 async function signInWithGoogle() {
+  await setPersistence(auth, browserLocalPersistence)
   const result = await signInWithPopup(auth, provider)
   const info = getAdditionalUserInfo(result)
-  document.cookie = `auth=1; path=/; max-age=${60 * 60 * 24 * 7}`
+  // 400 days in seconds
+  const maxAge = 400 * 24 * 60 * 60
+  document.cookie = `auth=1; path=/; max-age=${maxAge}`
   return { user: result.user, isNewUser: !!info?.isNewUser }
 }
 
