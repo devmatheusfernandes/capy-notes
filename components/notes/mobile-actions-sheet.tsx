@@ -149,7 +149,7 @@ export default function MobileActionsSheet({
         </SheetContent>
       </Sheet>
       <Input
-        placeholder="Buscar notas"
+        placeholder="Buscar notas..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="min-w-ful flex-1"

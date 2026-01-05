@@ -438,12 +438,23 @@ function NotesHeader() {
   const userId = useCurrentUserId();
   const { folders } = useFolders();
   const [viewPref, setViewPref] = useState<"list" | "grid">("list");
+  const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored =
       typeof window !== "undefined" ? localStorage.getItem("notes_view") : null;
     if (stored === "grid" || stored === "list") setViewPref(stored);
+
+    // Drag and drop global listener
+    const handleWindowDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(true);
+    };
+
+    window.addEventListener("dragenter", handleWindowDragEnter);
+    return () => window.removeEventListener("dragenter", handleWindowDragEnter);
   }, []);
 
   const folderId = searchParams?.get("folder") || undefined;
@@ -488,8 +499,7 @@ function NotesHeader() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleFiles = async (files: FileList) => {
     if (!files || files.length === 0) return;
 
     let importedCount = 0;
@@ -553,50 +563,97 @@ function NotesHeader() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) handleFiles(files);
+  };
+
   return (
-    <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
-      <div className="flex items-center min-w-0">
-        <FolderBreadcrumbs
-          path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
-          onNavigate={handleNavigateFolder}
-        />
+    <>
+      <div className="flex items-center justify-between w-full animate-in fade-in slide-in-from-left-2">
+        <div className="flex items-center min-w-0">
+          <FolderBreadcrumbs
+            path={folderPath.map((f) => ({ id: f.id, name: f.name }))}
+            onNavigate={handleNavigateFolder}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            multiple
+            accept=".txt,.md,.pdf"
+            onChange={handleFileChange}
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleImportClick}
+            title="Importar notas (.txt, .md, .pdf)"
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleCreateNote}
+            aria-label="Criar nota"
+          >
+            <FileText className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Nota</span>
+          </Button>
+          <CreateFolderDialog onCreate={handleCreateFolder} />
+          <Button variant="ghost" size="icon" onClick={toggleView}>
+            {viewPref === "list" ? (
+              <LayoutGrid size={20} />
+            ) : (
+              <ListIcon size={20} />
+            )}
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          multiple
-          accept=".txt,.md,.pdf"
-          onChange={handleFileChange}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleImportClick}
-          title="Importar notas (.txt, .md, .pdf)"
-        >
-          <Upload className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={handleCreateNote}
-          aria-label="Criar nota"
-        >
-          <FileText className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Nota</span>
-        </Button>
-        <CreateFolderDialog onCreate={handleCreateFolder} />
-        <Button variant="ghost" size="icon" onClick={toggleView}>
-          {viewPref === "list" ? (
-            <LayoutGrid size={20} />
-          ) : (
-            <ListIcon size={20} />
-          )}
-        </Button>
-      </div>
-    </div>
+
+      {/* Drag and Drop Overlay */}
+      <AnimatePresence>
+        {dragActive && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-99 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary m-4 rounded-xl"
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(false);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(false);
+              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+              }
+            }}
+          >
+            <div className="flex flex-col items-center justify-center text-muted-foreground pointer-events-none">
+              <Upload className="h-16 w-16 mb-4 animate-bounce text-primary" />
+              <p className="text-2xl font-bold text-foreground">Solte os arquivos aqui</p>
+              <p className="text-lg">para importar notas</p>
+              <p className="text-sm mt-2 opacity-75">.txt, .md, .pdf</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

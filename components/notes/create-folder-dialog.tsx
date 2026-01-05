@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -25,6 +25,12 @@ export default function CreateFolderDialog({
     setName("")
     setOpen(false)
   }
+
+  useEffect(() => {
+    const handler = () => setOpen(true)
+    window.addEventListener("capynotes:open_create_folder_dialog", handler)
+    return () => window.removeEventListener("capynotes:open_create_folder_dialog", handler)
+  }, [])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

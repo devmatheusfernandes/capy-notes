@@ -48,10 +48,14 @@ export function createNotesPageActions(cfg: NotesPageActionsConfig) {
   }
 
   const handleCreateFolder = async (nameInput?: string) => {
-    const name = (nameInput ?? window.prompt("Nome da pasta"))?.trim()
-    if (!name) return
-    if (!cfg.userId) return
-    await createFolderRemote(cfg.userId, name, cfg.currentFolderId)
+    if (nameInput && nameInput.trim()) {
+      if (!cfg.userId) return
+      await createFolderRemote(cfg.userId, nameInput.trim(), cfg.currentFolderId)
+      return
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("capynotes:open_create_folder_dialog"))
+    }
   }
 
   const handleNavigateFolder = (folderId?: string) => {
