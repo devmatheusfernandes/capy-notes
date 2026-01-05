@@ -700,16 +700,17 @@ function NotesContent() {
 
         {/* GRID DE CONTEÚDO */}
         <BatchTagEditorDialog
-        open={isBatchTagEditorOpen}
-        onOpenChange={setIsBatchTagEditorOpen}
-        selectedNoteIds={selectedNotes}
-        allNotes={allNotes}
-        tags={tags}
-        onSuccess={() => {
-          setSelectedNotes([]);
-          setIsBatchTagEditorOpen(false);
-        }}
-      />
+          open={isBatchTagEditorOpen}
+          onOpenChange={setIsBatchTagEditorOpen}
+          selectedNoteIds={selectedNotes}
+          allNotes={allNotes}
+          tags={tags}
+          onSuccess={() => {
+            setSelectedNotes([]);
+            setIsBatchTagEditorOpen(false);
+          }}
+        />
+        
       <BackgroundContextMenu
         onNewNote={handleCreateNote}
         onNewFolder={() => handleCreateFolder()}

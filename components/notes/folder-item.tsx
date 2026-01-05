@@ -122,7 +122,7 @@ export default function FolderItem({
             {/* Conteúdo de Texto */}
             <div className="flex-1 min-w-0 w-full">
               <div className="font-semibold flex items-center gap-2 mb-0.5">
-                <span className=" flex-1 flex items-center gap-2">
+                <span className=" flex-1 flex items-center gap-2 break-all">
                   {title}
                   {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
                   {pinned && <Pin className="h-3 w-3 text-muted-foreground rotate-45" />}
