@@ -2,14 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { signInWithGoogle } from "@/lib/auth";
 import { Spinner } from "@/components/ui/spinner";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function Home() {
+function HomeContent() {
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const router = useRouter()
@@ -60,5 +60,17 @@ export default function Home() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center">
+        <Spinner className="h-10 w-10 text-primary" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }

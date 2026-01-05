@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -46,7 +46,7 @@ const TabMotion = ({ children }: { children: React.ReactNode }) => (
   </motion.div>
 )
 
-export default function SettingsPage() {
+function SettingsContent() {
   const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
   const { baseColor, setBaseColor } = useBaseColor()
@@ -385,5 +385,24 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-6 p-4 max-w-4xl mx-auto">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-12 w-full" />
+        <div className="space-y-4">
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   )
 }
