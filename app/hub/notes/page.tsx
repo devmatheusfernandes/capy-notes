@@ -328,6 +328,8 @@ function NotesContent() {
     handleMoveFolder,
     handleArchiveFolder,
     handleExportNote,
+    handleExportPDF,
+    handleExportODT,
     bulkDelete,
     bulkArchive,
     bulkPin,
@@ -953,9 +955,22 @@ function NotesContent() {
                         </>
                       )}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleExportNote(n.id)}>
-                      <Download className="mr-2 h-4 w-4" /> Exportar
-                    </DropdownMenuItem>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Download className="mr-2 h-4 w-4" /> Exportar
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onSelect={() => handleExportNote(n.id)}>
+                          JSON
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExportPDF(n.id)}>
+                          PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExportODT(n.id)}>
+                          ODT
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive! hover:bg-destructive/20! hover:text-destructive!"
@@ -1029,9 +1044,22 @@ function NotesContent() {
                         </>
                       )}
                     </ContextMenuItem>
-                    <ContextMenuItem onSelect={() => handleExportNote(n.id)}>
-                      <Download className="mr-2 h-4 w-4" /> Exportar
-                    </ContextMenuItem>
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger>
+                        <Download className="mr-2 h-4 w-4" /> Exportar
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent>
+                        <ContextMenuItem onSelect={() => handleExportNote(n.id)}>
+                          JSON
+                        </ContextMenuItem>
+                        <ContextMenuItem onSelect={() => handleExportPDF(n.id)}>
+                          PDF
+                        </ContextMenuItem>
+                        <ContextMenuItem onSelect={() => handleExportODT(n.id)}>
+                          ODT
+                        </ContextMenuItem>
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       className="text-red-600"

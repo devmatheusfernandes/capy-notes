@@ -3,6 +3,7 @@ import { updateNote, deleteNote } from "@/lib/notes"
 import { createTag as createTagRemote, updateTag as updateTagRemote, deleteTag as deleteTagRemote } from "@/lib/tags"
 import { createFolder as createFolderRemote, deleteFolder as deleteFolderRemote, updateFolder as updateFolderRemote, getSubfolders } from "@/lib/folders"
 import type { NoteData, TagData, FolderData } from "@/types"
+import { exportToODT, exportToPDF } from "./export-utils"
 
 type Router = { push: (path: string) => void }
 
@@ -128,6 +129,28 @@ export function createNotesPageActions(cfg: NotesPageActionsConfig) {
     URL.revokeObjectURL(url)
   }
 
+  const handleExportPDF = async (id: string) => {
+    const note = cfg.allNotes.find((n) => n.id === id)
+    if (!note) return
+    try {
+      await exportToPDF(note)
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error)
+      alert("Erro ao exportar PDF. Tente novamente.")
+    }
+  }
+
+  const handleExportODT = async (id: string) => {
+    const note = cfg.allNotes.find((n) => n.id === id)
+    if (!note) return
+    try {
+      await exportToODT(note)
+    } catch (error) {
+      console.error("Erro ao exportar ODT:", error)
+      alert("Erro ao exportar ODT. Tente novamente.")
+    }
+  }
+
   const bulkDelete = async (folderMode: "keep" | "delete" = "keep") => {
     if (!cfg.userId) return
     const selectedNotes = cfg.getSelectedNotes()
@@ -226,6 +249,8 @@ export function createNotesPageActions(cfg: NotesPageActionsConfig) {
     handleMoveFolder,
     handleArchiveFolder,
     handleExportNote,
+    handleExportPDF,
+    handleExportODT,
     bulkDelete,
     bulkArchive,
     bulkUnarchive,
