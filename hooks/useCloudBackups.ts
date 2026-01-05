@@ -9,6 +9,7 @@ import {
 } from "firebase/storage";
 import { db, storage, auth } from "@/lib/firebase";
 import { toast } from "sonner";
+import { checkStorageQuota } from "@/lib/storage-limits";
 
 export type BackupMetadata = {
   id: string;
@@ -78,6 +79,13 @@ export const useCloudBackups = () => {
     try {
       let finalStoragePath = storagePath;
       let finalBackupId = backupId;
+
+      // Verificar Cota
+      const { allowed, limit } = await checkStorageQuota(user.uid, "backup", newBlob.size);
+      if (!allowed) {
+        toast.error(`Cota de armazenamento excedida (${limit / 1024 / 1024}MB). Exclua backups antigos.`);
+        return null;
+      }
 
       // Se for um backup novo (sem path ou ID temporário)
       if (!finalStoragePath || backupId === "new-temp") {

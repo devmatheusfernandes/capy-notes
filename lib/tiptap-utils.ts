@@ -14,6 +14,7 @@ import {
 } from "@tiptap/react"
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"
 import { storage, auth } from "@/lib/firebase"
+import { checkStorageQuota } from "./storage-limits"
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 export const MAX_PDF_SIZE = 20 * 1024 * 1024 // 20MB
@@ -447,6 +448,13 @@ export const handlePdfUpload = async (
   }
 
   const userId = auth.currentUser?.uid || "anonymous"
+  
+  // Check Quota
+  const { allowed, limit } = await checkStorageQuota(userId, "pdf", file.size)
+  if (!allowed) {
+    throw new Error(`Cota de armazenamento de PDFs excedida (${limit / 1024 / 1024}MB).`)
+  }
+
   const ext = "pdf"
   const path = `notes/${userId}/pdfs/${Date.now()}-${crypto.randomUUID()}.${ext}`
   const storageRef = ref(storage, path)
